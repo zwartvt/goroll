@@ -9,6 +9,7 @@ import { LogSegments } from "@/components/app/LogSegments";
 import { RarityBadge } from "@/components/app/RarityBadge";
 import { ItemEditor } from "@/components/app/ItemEditor";
 import { CharacterSheetModal } from "@/components/app/CharacterSheetModal";
+import { DMConditionsCreator } from "@/components/app/ConditionsPanel";
 import { useState } from "react";
 
 export const Route = createFileRoute("/campaign/dm")({ component: DM });
@@ -80,7 +81,12 @@ function DM() {
         </div>
       )}
 
-      {tab === "create" && <CreateItem campaignId={campaign.id} dm={dmCtx} players={players} />}
+      {tab === "create" && (
+        <div className="space-y-4">
+          <CreateItem campaignId={campaign.id} dm={dmCtx} players={players} />
+          <DMConditionsCreator campaignId={campaign.id} players={players} />
+        </div>
+      )}
 
       {tab === "vault" && (
         <div className="space-y-2">
