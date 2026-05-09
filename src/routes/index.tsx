@@ -101,8 +101,8 @@ function Home() {
       .insert({ name: newCampaignName.trim(), max_players: 999, owner_user_id: user.id }).select().single();
     if (error) return toast.error(error.message);
     await (supabase as any).from("campaign_members").insert({ campaign_id: data.id, user_id: user.id, role });
-    setCampaign(data as Campaign); setNewCampaignName("");
-    setStep("character");
+    setNewCampaignName("");
+    await pickCampaign(data as Campaign);
   }
 
   async function joinByCode() {
