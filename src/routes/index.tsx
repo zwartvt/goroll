@@ -117,8 +117,8 @@ function Home() {
     if (!data) return toast.error("Campaña no encontrada");
     await (supabase as any).from("campaign_members")
       .upsert({ campaign_id: data.id, user_id: user.id, role }, { onConflict: "campaign_id,user_id" });
-    setCampaign(data as Campaign); setJoinCode("");
-    setStep("character");
+    setJoinCode("");
+    await pickCampaign(data as Campaign);
   }
 
   async function pickCampaign(c: Campaign) {
