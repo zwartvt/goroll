@@ -79,6 +79,7 @@ function Settings() {
             {num("base_defense","Defensa base")}
             {num("velocity","Velocidad")}
             {num("initiative","Iniciativa")}
+            {num("damage_boost","Potenciación de daño")}
           </div>
         </div>
         <button className="btn-fantasy w-full" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }} onClick={save}>Guardar cambios</button>
