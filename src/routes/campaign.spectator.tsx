@@ -1,0 +1,121 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { useGameData } from "@/lib/useGame";
+import { PageFrame } from "@/components/app/Frame";
+import { LogOut } from "lucide-react";
+import { setSession, totals, type LogRow } from "@/lib/game";
+import { LogSegments } from "@/components/app/LogSegments";
+import { CharacterSheetModal } from "@/components/app/CharacterSheetModal";
+import { ItemModal } from "@/components/app/ItemModal";
+
+export const Route = createFileRoute("/campaign/spectator")({ component: Spectator });
+
+function Spectator() {
+  const { campaign, characters, items, logs, achievements, loading } = useGameData();
+  const nav = useNavigate();
+  const [tab, setTab] = useState<"players" | "log" | "achievements">("players");
+  const [openChar, setOpenChar] = useState<string | null>(null);
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
+
+  if (loading || !campaign) return <PageFrame><p className="text-center text-muted-foreground">Cargando...</p></PageFrame>;
+
+  function logout() { setSession(null); nav({ to: "/" }); }
+  const players = characters.filter(c => c.role === "player");
+  const openItemFromId = (id: string) => setOpenItemId(id);
+
+  return (
+    <PageFrame>
+      <header className="flex items-start justify-between gap-2 mb-3">
+        <button onClick={logout} className="text-muted-foreground"><LogOut size={18}/></button>
+        <div className="text-center">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{campaign.name}</p>
+          <h1 className="font-display text-xl rune-glow">👁️ Espectador</h1>
+        </div>
+        <div className="w-5"/>
+      </header>
+      <div className="gem-divider mb-4"/>
+
+      <div className="grid grid-cols-3 gap-1 mb-4">
+        {([
+          ["players","🛡️ Héroes"],["log","📜 Log"],["achievements","🏆 Logros"],
+        ] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)}
+            className={`text-xs py-2 rounded-md font-display ${tab===k?"bg-[var(--gold)] text-black":"bg-card text-foreground border border-border"}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {tab === "players" && (
+        <div className="grid grid-cols-2 gap-3">
+          {players.map(p => {
+            const eq = items.filter(i => i.owner_character_id === p.id && i.equipped);
+            const stats = totals(p, eq);
+            const hpPct = Math.max(0, Math.min(100, (p.current_hp / stats.maxHp) * 100));
+            return (
+              <button key={p.id} onClick={() => setOpenChar(p.id)} className="ornate-card p-2 text-left">
+                <div className="aspect-square w-full rounded-md overflow-hidden bg-secondary/40 mb-2 relative">
+                  {p.image_url ? (
+                    <img src={p.image_url} alt={p.name} className="w-full h-full object-cover"
+                      style={{ transform: `translate(${(Number(p.image_offset_x)-50)}%, ${(Number(p.image_offset_y)-50)}%) scale(${p.image_scale})`, transformOrigin: "center center" }} />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-3xl">⚔️</div>
+                  )}
+                </div>
+                <p className="font-display text-sm truncate" style={{ color: p.color }}>{p.name}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{p.race||"—"} / {p.class||"—"}</p>
+                <div className="mt-1 h-1.5 w-full rounded bg-secondary/60 overflow-hidden">
+                  <div className="h-full bg-[var(--blood)]" style={{ width: `${hpPct}%` }} />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">❤️ {p.current_hp}/{stats.maxHp}</p>
+              </button>
+            );
+          })}
+          {!players.length && <p className="col-span-2 text-center text-xs text-muted-foreground py-6">No hay héroes en esta campaña aún.</p>}
+        </div>
+      )}
+
+      {tab === "log" && (
+        <div className="ornate-card p-3 max-h-[70vh] overflow-y-auto space-y-2">
+          {logs.map((l: LogRow) => (
+            <div key={l.id} className={`text-sm bg-secondary/40 rounded px-3 py-2 leading-relaxed ${l.undone ? "opacity-50 line-through" : ""}`}>
+              <LogSegments segments={l.segments as any}
+                onItem={openItemFromId}
+                onChar={(id) => setOpenChar(id)} />
+              <p className="text-[10px] text-muted-foreground mt-1">{new Date(l.created_at).toLocaleTimeString()}</p>
+            </div>
+          ))}
+          {!logs.length && <p className="text-center text-xs text-muted-foreground py-6">Sin movimientos aún.</p>}
+        </div>
+      )}
+
+      {tab === "achievements" && (
+        <div className="space-y-3">
+          {players.map(p => {
+            const list = achievements.filter(a => a.character_id === p.id);
+            return (
+              <div key={p.id} className="ornate-card p-3">
+                <p className="font-display text-sm mb-2" style={{ color: p.color }}>{p.name}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {list.map(a => (
+                    <span key={a.id} className="text-[10px] rounded-full px-2 py-0.5 border" style={{ borderColor: a.color, color: a.color }}>🏆 {a.label}</span>
+                  ))}
+                  {!list.length && <span className="text-[10px] text-muted-foreground">Sin logros aún.</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {openChar && (
+        <CharacterSheetModal characterId={openChar} campaignId={campaign.id} editor={null}
+          onClose={() => setOpenChar(null)}
+          onPickItem={(it) => setOpenItemId(it.id)} />
+      )}
+      {openItemId && (
+        <ItemModal itemId={openItemId} onClose={() => setOpenItemId(null)} />
+      )}
+    </PageFrame>
+  );
+}

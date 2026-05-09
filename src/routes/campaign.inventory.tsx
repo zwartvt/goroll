@@ -1,0 +1,166 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useGameData } from "@/lib/useGame";
+import { PageFrame } from "@/components/app/Frame";
+import { ArrowLeft } from "lucide-react";
+import { SLOTS, RARITY_COLOR, RARITY_BONUS, isWeapon, totals, ITEM_CATEGORIES, type Item, type Rarity } from "@/lib/game";
+import { supabase } from "@/integrations/supabase/client";
+import { pushLog } from "@/lib/log";
+import { RarityBadge } from "@/components/app/RarityBadge";
+import { useState } from "react";
+
+export const Route = createFileRoute("/campaign/inventory")({ component: Inventory });
+
+const MAX_SLOTS = 20;
+
+function Inventory() {
+  const { character, items, characters, campaign, loading } = useGameData();
+  const [sel, setSel] = useState<Item | null>(null);
+  const [transferTo, setTransferTo] = useState("");
+
+  if (loading || !character || !campaign) return <PageFrame><p className="text-center text-muted-foreground">Cargando...</p></PageFrame>;
+
+  const owned = items.filter(i => i.owner_character_id === character.id);
+  const slotIcon = (it: Item) => {
+    if (it.category && it.category !== "equipo") {
+      return ITEM_CATEGORIES.find(c => c.key === it.category)?.icon || "📦";
+    }
+    return SLOTS.find(s => s.key === it.slot)?.icon || "📦";
+  };
+
+  async function syncHpAfter(nextEquipped: Item[]) {
+    const oldMax = totals(character!, owned.filter(i => i.equipped)).maxHp;
+    const newMax = totals(character!, nextEquipped).maxHp;
+    const delta = newMax - oldMax;
+    const nextHp = Math.max(0, Math.min(newMax, character!.current_hp + delta));
+    if (nextHp !== character!.current_hp) {
+      await supabase.from("characters").update({ current_hp: nextHp }).eq("id", character!.id);
+    }
+  }
+
+  async function equip(it: Item) {
+    const cur = owned.find(o => o.equipped && o.slot === it.slot);
+    if (cur) await supabase.from("items").update({ equipped: false }).eq("id", cur.id);
+    await supabase.from("items").update({ equipped: true }).eq("id", it.id);
+    const next = owned.filter(i => i.equipped && i.id !== cur?.id && i.id !== it.id).concat([{ ...it, equipped: true }]);
+    await syncHpAfter(next);
+    await pushLog(campaign!.id, [{t:"char",v:character!.name,color:character!.color,id:character!.id},{t:"text",v:"se equipó"},{t:"item",v:it.name,rarity:it.rarity as Rarity,id:it.id}]);
+    setSel(null);
+  }
+  async function unequip(it: Item) {
+    await supabase.from("items").update({ equipped: false }).eq("id", it.id);
+    const next = owned.filter(i => i.equipped && i.id !== it.id);
+    await syncHpAfter(next);
+    await pushLog(campaign!.id, [{t:"char",v:character!.name,color:character!.color,id:character!.id},{t:"text",v:"se quitó"},{t:"item",v:it.name,rarity:it.rarity as Rarity,id:it.id}]);
+    setSel(null);
+  }
+  async function useItem(it: Item) {
+    const remaining = (it.uses ?? 1) - 1;
+    if (remaining <= 0) {
+      // send to DM vault
+      await supabase.from("items").update({ owner_character_id: null, in_dm_vault: true, equipped: false, uses: 0 }).eq("id", it.id);
+      await pushLog(campaign!.id, [
+        {t:"char",v:character!.name,color:character!.color,id:character!.id},
+        {t:"text",v:"usó (último)"},
+        {t:"item",v:it.name,rarity:it.rarity as Rarity,id:it.id},
+      ], { kind: "item.update", id: it.id, prev: { owner_character_id: character!.id, in_dm_vault: false, equipped: it.equipped, uses: it.uses } });
+    } else {
+      await supabase.from("items").update({ uses: remaining }).eq("id", it.id);
+      await pushLog(campaign!.id, [
+        {t:"char",v:character!.name,color:character!.color,id:character!.id},
+        {t:"text",v:`usó (${remaining} restantes)`},
+        {t:"item",v:it.name,rarity:it.rarity as Rarity,id:it.id},
+      ], { kind: "item.update", id: it.id, prev: { uses: it.uses } });
+    }
+    setSel(null);
+  }
+  async function discard(it: Item) {
+    // Tirado va al vault del DM (no se elimina) para que el DM pueda devolverlo.
+    await supabase.from("items").update({ owner_character_id: null, equipped: false, in_dm_vault: true }).eq("id", it.id);
+    await pushLog(campaign!.id, [
+      {t:"char",v:character!.name,color:character!.color,id:character!.id},
+      {t:"text",v:"tiró"},
+      {t:"item",v:it.name,rarity:it.rarity as Rarity,id:it.id},
+    ], { kind: "item.update", id: it.id, prev: { owner_character_id: character!.id, equipped: it.equipped, in_dm_vault: it.in_dm_vault } });
+    setSel(null);
+  }
+  async function transfer(it: Item) {
+    if (!transferTo) return;
+    const target = characters.find(c => c.id === transferTo);
+    await supabase.from("items").update({ owner_character_id: transferTo, equipped: false }).eq("id", it.id);
+    await pushLog(campaign!.id, [
+      {t:"char",v:character!.name,color:character!.color,id:character!.id},{t:"text",v:"entregó"},
+      {t:"item",v:it.name,rarity:it.rarity as Rarity,id:it.id},{t:"text",v:"a"},
+      {t:"char",v:target?.name||"?",color:target?.color||"#ccc",id:transferTo},
+    ], { kind: "item.update", id: it.id, prev: { owner_character_id: character!.id, equipped: it.equipped } });
+    setSel(null); setTransferTo("");
+  }
+
+  const slots = Array.from({ length: MAX_SLOTS }, (_, i) => owned[i] ?? null);
+
+  return (
+    <PageFrame title="Mochila" subtitle={`${owned.length}/${MAX_SLOTS} slots`} right={<Link to="/campaign/profile" className="text-muted-foreground"><ArrowLeft size={20}/></Link>}>
+      <div className="grid grid-cols-4 gap-2">
+        {slots.map((it, i) => (
+          <button key={i} onClick={() => it && setSel(it)}
+            className="aspect-square ornate-card flex flex-col items-center justify-center p-1 relative"
+            style={it && it.category === "equipo" ? { borderColor: RARITY_COLOR[it.rarity as Rarity] } : undefined}>
+            {it ? <>
+              <span className="text-xl">{slotIcon(it)}</span>
+              <span className="text-[8px] truncate w-full text-center" style={it.category === "equipo" ? { color: RARITY_COLOR[it.rarity as Rarity] } : undefined}>{it.name}</span>
+              {it.category !== "equipo" && (it.uses ?? 0) > 0 && <span className="absolute bottom-0 right-0 text-[8px] bg-secondary px-1 rounded">x{it.uses}</span>}
+              {it.equipped && <span className="absolute top-0 right-0 text-[8px] bg-[var(--gold)] text-black px-1 rounded">EQ</span>}
+            </> : <span className="text-muted-foreground text-xs">·</span>}
+          </button>
+        ))}
+      </div>
+
+      {sel && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setSel(null)}>
+          <div className="ornate-card p-4 max-w-sm w-full space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-display text-lg" style={sel.category === "equipo" ? { color: RARITY_COLOR[sel.rarity as Rarity] } : undefined}>{sel.name}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {sel.category === "equipo"
+                    ? SLOTS.find(s=>s.key===sel.slot)?.label
+                    : ITEM_CATEGORIES.find(c => c.key === sel.category)?.label || "Objeto"}
+                </p>
+              </div>
+              {sel.category === "equipo" && <RarityBadge rarity={sel.rarity as Rarity} />}
+            </div>
+            {sel.category === "equipo" ? (
+              <p className="text-sm">
+                {isWeapon(sel.slot as any)
+                  ? <>Daño permanente: <strong className="text-[var(--gold)]">+{sel.damage_bonus}</strong></>
+                  : <>Defensa <strong className="text-[var(--gold)]">+{sel.defense_bonus||RARITY_BONUS[sel.rarity as Rarity].def}</strong> · Vida <strong className="text-[var(--gold)]">+{sel.hp_bonus||RARITY_BONUS[sel.rarity as Rarity].hp}</strong></>}
+              </p>
+            ) : (
+              (sel.uses ?? 0) > 0 && <p className="text-sm">Usos restantes: <strong className="text-[var(--gold)]">{sel.uses}{sel.max_uses ? `/${sel.max_uses}` : ""}</strong></p>
+            )}
+            {sel.description && <p className="text-xs text-muted-foreground italic">"{sel.description}"</p>}
+            <div className="grid grid-cols-2 gap-2">
+              {sel.category === "equipo" ? (
+                sel.equipped
+                  ? <button className="btn-fantasy" onClick={() => unequip(sel)}>Desequipar</button>
+                  : <button className="btn-fantasy" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }} onClick={() => equip(sel)}>Equipar</button>
+              ) : (
+                <button className="btn-fantasy" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }}
+                  disabled={(sel.uses ?? 0) <= 0}
+                  onClick={() => useItem(sel)}>Usar</button>
+              )}
+              <button className="btn-fantasy" onClick={() => discard(sel)}>Tirar</button>
+            </div>
+            <div className="gem-divider"/>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Transferir a:</p>
+            <select className="w-full bg-input border border-border rounded px-2 py-2 text-sm" value={transferTo} onChange={e => setTransferTo(e.target.value)}>
+              <option value="">— elige jugador —</option>
+              {characters.filter(c => c.id !== character.id).map(c => <option key={c.id} value={c.id}>{c.name} {c.role === "dm" ? "(DM)" : ""}</option>)}
+            </select>
+            <button className="btn-fantasy w-full" disabled={!transferTo} onClick={() => transfer(sel)}>Entregar</button>
+            <button className="text-xs text-muted-foreground underline w-full text-center" onClick={() => setSel(null)}>Cerrar</button>
+          </div>
+        </div>
+      )}
+    </PageFrame>
+  );
+}
