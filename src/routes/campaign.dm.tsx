@@ -110,6 +110,44 @@ function DM() {
         <div className="space-y-4">
           <CreateItem campaignId={campaign.id} dm={dmCtx} players={players} />
           <DMConditionsCreator campaignId={campaign.id} players={players} />
+          <div className="ornate-card p-4 space-y-2">
+            <h3 className="font-display text-sm uppercase tracking-widest text-[var(--rarity-purple)]">🃏 Crear potenciador</h3>
+            <p className="text-xs text-muted-foreground">Define nombre, rareza y usos. Se guarda en el Vault.</p>
+            <button className="btn-fantasy w-full"
+              style={{ background: "linear-gradient(135deg, var(--rarity-purple), oklch(0.35 0.18 300))", color: "white" }}
+              onClick={() => setCreatingBooster(true)}>
+              <Plus size={14} className="inline" /> Nuevo potenciador
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "boosters" && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 ornate-card px-2 py-1">
+            <Search size={14} className="text-muted-foreground" />
+            <input value={boosterSearch} onChange={e => setBoosterSearch(e.target.value)}
+              placeholder="Buscar potenciador..." className="flex-1 bg-transparent outline-none text-sm" />
+          </div>
+          {boosters.length === 0 && <p className="text-center text-xs text-muted-foreground py-6">Sin potenciadores. Crea uno desde "Crear".</p>}
+          {boosters
+            .filter(b => !boosterSearch || b.name.toLowerCase().includes(boosterSearch.toLowerCase()))
+            .map(b => {
+              const owner = b.owner_character_id ? characters.find(c => c.id === b.owner_character_id) : null;
+              return (
+                <button key={b.id} onClick={() => setSelBooster(b)}
+                  className="w-full ornate-card p-3 flex justify-between items-center text-left"
+                  style={{ borderColor: RARITY_COLOR[b.rarity as Rarity] }}>
+                  <div>
+                    <p className="font-display" style={{ color: RARITY_COLOR[b.rarity as Rarity] }}>🃏 {b.name}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {b.uses}/{b.max_uses} usos · {owner ? `📦 ${owner.name}` : "🏛️ Vault"}
+                    </p>
+                  </div>
+                  <RarityBadge rarity={b.rarity as Rarity} />
+                </button>
+              );
+            })}
         </div>
       )}
 
