@@ -85,6 +85,42 @@ export type Database = {
         }
         Relationships: []
       }
+      boosters: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          in_dm_vault: boolean
+          max_uses: number
+          name: string
+          owner_character_id: string | null
+          rarity: Database["public"]["Enums"]["item_rarity"]
+          uses: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          in_dm_vault?: boolean
+          max_uses?: number
+          name: string
+          owner_character_id?: string | null
+          rarity?: Database["public"]["Enums"]["item_rarity"]
+          uses?: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          in_dm_vault?: boolean
+          max_uses?: number
+          name?: string
+          owner_character_id?: string | null
+          rarity?: Database["public"]["Enums"]["item_rarity"]
+          uses?: number
+        }
+        Relationships: []
+      }
       campaign_members: {
         Row: {
           campaign_id: string
@@ -183,6 +219,7 @@ export type Database = {
       }
       characters: {
         Row: {
+          backpack_slots: number
           base_defense: number
           base_hp: number
           campaign_id: string
@@ -211,6 +248,7 @@ export type Database = {
           wis: number
         }
         Insert: {
+          backpack_slots?: number
           base_defense?: number
           base_hp?: number
           campaign_id: string
@@ -239,6 +277,7 @@ export type Database = {
           wis?: number
         }
         Update: {
+          backpack_slots?: number
           base_defense?: number
           base_hp?: number
           campaign_id?: string
