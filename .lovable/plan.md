@@ -1,64 +1,68 @@
-## Plan
+# Plan: Realtime, Duplicados de Potenciadores, y Co-DM
 
-### 1. Pop-up "Jugador no encontrado"
-En `LogSegments.tsx`, cuando se hace click sobre un nombre de jugador (`s.t === "char"`) y el `onChar` resuelve a un personaje que no existe en la campaña actual, mostrar un toast/modal: **"Jugador no encontrado"**. Implementación: el handler `onChar` en `campaign.profile.tsx` y `campaign.dm.tsx` consulta `characters` por id; si devuelve `null`, dispara `toast.error("Jugador no encontrado")` en lugar de abrir el `CharacterSheetModal`.
+## 1. Realtime en todas las vistas
 
-### 2. Sistema de Potenciadores
+**Problema:** Los cambios (HP, objetos, potenciadores, logs, condiciones) no se reflejan en tiempo real. Hay que recargar el perfil.
 
-**Base de datos** (migración):
-```sql
-CREATE TABLE public.boosters (
-  id uuid PK default gen_random_uuid(),
-  campaign_id uuid NOT NULL,
-  name text NOT NULL,
-  rarity item_rarity NOT NULL DEFAULT 'white',
-  uses int NOT NULL DEFAULT 1,
-  max_uses int NOT NULL DEFAULT 1,
-  owner_character_id uuid NULL,        -- NULL = en Vault del DM
-  in_dm_vault boolean NOT NULL DEFAULT false,
-  created_at timestamptz default now()
-);
-ALTER PUBLICATION supabase_realtime ADD TABLE public.boosters;
--- RLS public_all (consistente con resto del proyecto)
-```
+**Solución:** Crear un hook genérico `useRealtimeRefetch(campaignId, tables, callback)` y aplicarlo en todas las rutas principales:
+- `campaign.profile.tsx` — characters, items, character_conditions, achievements, logs, boosters
+- `campaign.dm.tsx` — characters, items, boosters, logs, character_conditions
+- `campaign.equipment.tsx`, `campaign.inventory.tsx`, `campaign.boosters.tsx`, `campaign.spectator.tsx`, `campaign.achievements.tsx` — sus tablas relevantes
+- `CharacterSheetModal.tsx` — refrescar datos del personaje abierto
 
-**Vista del jugador** (`campaign.equipment.tsx` y nueva ruta `campaign.boosters.tsx`):
-- Añadir un cuarto botón en la cuadrícula de "Equipo / Mochila / Logros" llamado **"Potenciadores"** con fondo morado (`var(--rarity-purple)`), debajo del último.
-- Nueva ruta `/campaign/boosters` muestra cuadros estilo equipamiento (grid). Cada carta muestra nombre, badge de rareza, "X / Y usos".
-- Tap sobre carta abre modal con: **Usar** y **Detalles**.
-- "Usar" muestra confirmación: *"¿Estás seguro que quieres usar este potenciador?"* → al confirmar:
-  - `uses -= 1`. Si llega a 0 → DELETE.
-  - `pushLog` con segmentos: char(jugador) + " usó " + item-style(nombre, rareza).
+Cada hook se suscribe a `postgres_changes` filtrando por `campaign_id` y vuelve a cargar el estado local cuando llega un cambio. Asegurar canales con nombres únicos (`realtime:{ruta}:{campaignId}`) y limpieza al desmontar.
 
-**Vista del DM** (`campaign.dm.tsx`):
-- En la tab nav del DM, añadir botón **"Potenciadores"** entre "Vault" y "Players".
-- Vista lista con buscador (input filtra por nombre, case-insensitive). Sin límite de filas.
-- Cada fila: nombre, rareza, usos (X/Y), dueño (Vault o nombre del personaje). Acciones: **Editar** (modal: nombre, rareza, max_uses, uses — el DM puede poner 0), **Transferir** (select de personajes de la campaña + opción "Vault"), **Destruir**.
-- En la tab **Crear** del DM, debajo del bloque de Efectos de Condición añadir bloque **"Crear potenciador"** con: input nombre, select rareza, input number "Usos" (default 1, min 0). Botón "Crear" → inserta con `in_dm_vault=true`, `owner_character_id=null`, `uses=max_uses`.
-- Desde la vista del personaje (`CharacterSheetModal` para DM), añadir botón "Potenciadores" que muestra los del jugador con acciones **Quitar** (transferir a Vault) y **Transferir a otro jugador**.
+**Migración:** Asegurar que `characters`, `items`, `boosters`, `logs`, `character_conditions`, `achievements`, `campaigns`, `campaign_members` están en `supabase_realtime` con `REPLICA IDENTITY FULL`.
 
-**Reglas de negocio:**
-- DM puede poseer/editar potenciadores con 0 usos. Jugador no puede usar uno con 0 usos (botón deshabilitado).
-- "Transferir" cambia `owner_character_id` y `in_dm_vault` (true si destino = Vault, false si va a un jugador).
-- Sin límites de capacidad para el DM (el Vault del DM es ilimitado, igual que para items).
+## 2. Eliminar potenciadores duplicados
 
-**Archivos:**
-- Nuevo: `src/routes/campaign.boosters.tsx`, `src/components/app/BoosterCard.tsx`, `src/components/app/BoosterEditor.tsx` (modal crear/editar), `src/components/app/BoosterTransferModal.tsx`.
-- Modificados: `src/routes/campaign.equipment.tsx` (botón Potenciadores), `src/routes/campaign.dm.tsx` (tab + crear + sección de potenciadores del jugador), `src/components/app/CharacterSheetModal.tsx` (acceso a potenciadores del personaje desde DM), `src/components/app/LogSegments.tsx` o handlers `onChar` (toast no encontrado), `src/integrations/supabase/types.ts` (regenerado por migración), `src/lib/game.ts` (export `Booster` type).
+En `campaign.dm.tsx`, dentro del tab de Potenciadores, añadir un botón **"Eliminar duplicados"** que:
+- Agrupa por `name` (case-insensitive trimmed)
+- Conserva el primero (el más antiguo) y borra el resto
+- Muestra confirmación previa con conteo de cuántos se eliminarán
+- Loguea la acción
 
-### 3. Control de slots para el DM
+## 3. Sistema de Co-DM con aprobación
 
-Asumo: **slots de mochila por personaje** (capacidad de objetos en la mochila del jugador). Hoy `characters` no tiene tal columna; se añade `backpack_slots int NOT NULL DEFAULT 12`.
+**Migración SQL:**
+- Añadir `campaigns.single_dm_only BOOLEAN DEFAULT false`
+- Crear tabla `dm_join_requests`:
+  - `id`, `campaign_id`, `requester_user_id`, `requester_username` (snapshot), `status` ('pending'|'approved'|'rejected'), `created_at`, `resolved_at`
+- Habilitar realtime en ambas
 
-- Migración: `ALTER TABLE characters ADD COLUMN backpack_slots int NOT NULL DEFAULT 12`.
-- En `campaign.inventory.tsx` mostrar contador "X / backpack_slots" y bloquear meter más objetos en mochila si se llena (item.equipped=false count).
-- En `CharacterSheetModal.tsx` en modo DM añadir control "+/–" para `backpack_slots` (mín 1).
-- `toastSaved()` al guardar.
+**UI Crear campaña** (`master.tsx` o donde se crea): checkbox "Solo un Dungeon Master en la campaña".
 
-> Nota: si en realidad te referías a otra cosa con "slots" (p. ej. slots de equipamiento, número de potenciadores máximo, o `max_players` de la campaña), avísame al revisar este plan y lo ajusto en una iteración corta.
+**Flujo de entrada como DM** (`campaign.tsx` o donde se hace join):
+1. Usuario selecciona "Entrar como DM" en una campaña existente.
+2. Si el usuario ES el `owner_user_id`, entra directo.
+3. Si NO es owner:
+   - Si `single_dm_only=true` → rechazo automático con toast.
+   - Si hay rechazo previo (<60s) → toast "Espera X segundos".
+   - Si no, crear `dm_join_requests` con `status='pending'`. Mostrar pantalla "Esperando aprobación del DM original" con polling/realtime.
+4. Cuando se aprueba → insertar en `campaign_members` con `role='dm'` y redirigir a `/campaign/dm`.
+5. Cuando se rechaza → toast y volver atrás. El cliente registra timestamp local de cooldown.
 
-### Resumen técnico
-- 1 migración (tabla `boosters` + columna `backpack_slots` + realtime).
-- ~3 nuevos componentes + 1 nueva ruta.
-- Cambios menores en log handlers (toast jugador no encontrado).
-- Sin nuevas dependencias.
+**UI del DM original:**
+Componente global `DMRequestGate` montado en `campaign.dm.tsx` (y al cargar la app si el usuario tiene campañas como owner). Hace query de `dm_join_requests` con `status='pending'` para sus campañas. Si encuentra alguna, muestra **AlertDialog modal bloqueante** (no se puede cerrar) con:
+- Nombre de la campaña
+- Username del solicitante
+- Botones **Sí** / **No**
+
+El diálogo persiste entre sesiones porque la solicitud sigue pendiente en BD; cada vez que el DM entra, vuelve a aparecer hasta resolverla.
+
+**Bug "carga infinita al entrar como DM":** Probablemente `useGameData` no maneja el caso de un `app_user` distinto al `owner_user_id` que intenta cargar la vista de DM. Revisar `useGame.ts` y `campaign.tsx` para asegurar que tras aprobación el `campaign_members` con role='dm' permite cargar la vista. Mientras tanto, evitar el loop infinito mostrando la pantalla de "Esperando aprobación" en su lugar.
+
+## Orden de ejecución
+
+1. Migración SQL (single_dm_only + dm_join_requests + realtime publications).
+2. Crear `src/hooks/useRealtimeRefetch.ts`.
+3. Aplicar hook a todas las rutas listadas + CharacterSheetModal.
+4. Botón "Eliminar duplicados" en tab Potenciadores del DM.
+5. Checkbox "Solo un DM" al crear campaña.
+6. Flujo de solicitud Co-DM en pantalla de selección de rol.
+7. Componente `DMRequestGate` en vista DM.
+8. Fix del loop de carga.
+
+## Archivos clave a modificar
+- **Nuevo:** `src/hooks/useRealtimeRefetch.ts`, `src/components/app/DMRequestGate.tsx`
+- **Editar:** `campaign.profile.tsx`, `campaign.dm.tsx`, `campaign.equipment.tsx`, `campaign.inventory.tsx`, `campaign.boosters.tsx`, `campaign.spectator.tsx`, `campaign.achievements.tsx`, `CharacterSheetModal.tsx`, `campaign.tsx`, `master.tsx`, `useGame.ts`
