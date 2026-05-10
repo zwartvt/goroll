@@ -5,6 +5,7 @@ import { fmtMod, modifier, totals, setSession } from "@/lib/game";
 import { supabase } from "@/integrations/supabase/client";
 import { pushLog } from "@/lib/log";
 import { LogSegments } from "@/components/app/LogSegments";
+import { LogList } from "@/components/app/LogList";
 import { CharacterSheetModal } from "@/components/app/CharacterSheetModal";
 import { ItemModal } from "@/components/app/ItemModal";
 import { ConditionsPanel } from "@/components/app/ConditionsPanel";
