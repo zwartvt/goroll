@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useGameData } from "@/lib/useGame";
 import { PageFrame } from "@/components/app/Frame";
-import { LogOut, Plus, Send, Trophy, Pencil, Undo2 } from "lucide-react";
+import { LogOut, Plus, Send, Trophy, Pencil, Undo2, Search } from "lucide-react";
 import { SLOTS, RARITY_BONUS, RARITY_COLOR, RARITY_LABEL, ITEM_CATEGORIES, isWeapon, setSession, type Item, type ItemCategory, type Rarity, type Slot, type Character, type LogRow } from "@/lib/game";
 import { supabase } from "@/integrations/supabase/client";
 import { pushLog, type UndoAction } from "@/lib/log";
@@ -10,17 +10,39 @@ import { RarityBadge } from "@/components/app/RarityBadge";
 import { ItemEditor } from "@/components/app/ItemEditor";
 import { CharacterSheetModal } from "@/components/app/CharacterSheetModal";
 import { DMConditionsCreator } from "@/components/app/ConditionsPanel";
-import { useState } from "react";
+import { BoosterEditor, BoosterActions } from "@/components/app/BoosterEditor";
+import { type Booster } from "@/components/app/BoosterCard";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/campaign/dm")({ component: DM });
 
 function DM() {
   const { character, characters, items, logs, campaign, loading } = useGameData();
   const nav = useNavigate();
-  const [tab, setTab] = useState<"log" | "create" | "vault" | "players">("log");
+  const [tab, setTab] = useState<"log" | "create" | "vault" | "boosters" | "players">("log");
   const [selItem, setSelItem] = useState<Item | null>(null);
   const [editItem, setEditItem] = useState<Item | null>(null);
   const [openChar, setOpenChar] = useState<string | null>(null);
+  const [boosters, setBoosters] = useState<Booster[]>([]);
+  const [boosterSearch, setBoosterSearch] = useState("");
+  const [selBooster, setSelBooster] = useState<Booster | null>(null);
+  const [editBooster, setEditBooster] = useState<Booster | null>(null);
+  const [creatingBooster, setCreatingBooster] = useState(false);
+
+  useEffect(() => {
+    if (!campaign) return;
+    const reload = async () => {
+      const { data } = await (supabase as any).from("boosters")
+        .select("*").eq("campaign_id", campaign.id).order("created_at");
+      setBoosters((data || []) as Booster[]);
+    };
+    reload();
+    const ch = (supabase as any).channel(`boosters:dm:${campaign.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "boosters", filter: `campaign_id=eq.${campaign.id}` }, reload)
+      .subscribe();
+    return () => { (supabase as any).removeChannel(ch); };
+  }, [campaign?.id]);
 
   if (loading || !character || !campaign) return <PageFrame><p className="text-center text-muted-foreground">Cargando...</p></PageFrame>;
 
@@ -48,12 +70,12 @@ function DM() {
       </header>
       <div className="gem-divider mb-4"/>
 
-      <div className="grid grid-cols-4 gap-1 mb-4">
+      <div className="grid grid-cols-5 gap-1 mb-4">
         {([
-          ["log","📜 Log"],["create","✨ Crear"],["vault","🏛️ Vault"],["players","🛡️ Players"],
+          ["log","📜 Log"],["create","✨ Crear"],["vault","🏛️ Vault"],["boosters","🃏 Pot."],["players","🛡️ Players"],
         ] as const).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`text-xs py-2 rounded-md font-display ${tab===k?"bg-[var(--gold)] text-black":"bg-card text-foreground border border-border"}`}>
+            className={`text-[10px] py-2 rounded-md font-display ${tab===k?"bg-[var(--gold)] text-black":"bg-card text-foreground border border-border"}`}>
             {l}
           </button>
         ))}
@@ -65,7 +87,10 @@ function DM() {
             <div key={l.id} className={`text-sm bg-secondary/40 rounded px-3 py-2 leading-relaxed ${l.undone ? "opacity-50 line-through" : ""}`}>
               <LogSegments segments={l.segments as any}
                 onItem={openItemFromId}
-                onChar={(id) => setOpenChar(id)} />
+                onChar={(id) => {
+                  if (!characters.find(c => c.id === id)) toast.error("Jugador no encontrado");
+                  else setOpenChar(id);
+                }} />
               <div className="flex justify-between items-center mt-1">
                 <p className="text-[10px] text-muted-foreground">{new Date(l.created_at).toLocaleTimeString()}</p>
                 {l.undo && !l.undone && (
@@ -85,6 +110,44 @@ function DM() {
         <div className="space-y-4">
           <CreateItem campaignId={campaign.id} dm={dmCtx} players={players} />
           <DMConditionsCreator campaignId={campaign.id} players={players} />
+          <div className="ornate-card p-4 space-y-2">
+            <h3 className="font-display text-sm uppercase tracking-widest text-[var(--rarity-purple)]">🃏 Crear potenciador</h3>
+            <p className="text-xs text-muted-foreground">Define nombre, rareza y usos. Se guarda en el Vault.</p>
+            <button className="btn-fantasy w-full"
+              style={{ background: "linear-gradient(135deg, var(--rarity-purple), oklch(0.35 0.18 300))", color: "white" }}
+              onClick={() => setCreatingBooster(true)}>
+              <Plus size={14} className="inline" /> Nuevo potenciador
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "boosters" && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 ornate-card px-2 py-1">
+            <Search size={14} className="text-muted-foreground" />
+            <input value={boosterSearch} onChange={e => setBoosterSearch(e.target.value)}
+              placeholder="Buscar potenciador..." className="flex-1 bg-transparent outline-none text-sm" />
+          </div>
+          {boosters.length === 0 && <p className="text-center text-xs text-muted-foreground py-6">Sin potenciadores. Crea uno desde "Crear".</p>}
+          {boosters
+            .filter(b => !boosterSearch || b.name.toLowerCase().includes(boosterSearch.toLowerCase()))
+            .map(b => {
+              const owner = b.owner_character_id ? characters.find(c => c.id === b.owner_character_id) : null;
+              return (
+                <button key={b.id} onClick={() => setSelBooster(b)}
+                  className="w-full ornate-card p-3 flex justify-between items-center text-left"
+                  style={{ borderColor: RARITY_COLOR[b.rarity as Rarity] }}>
+                  <div>
+                    <p className="font-display" style={{ color: RARITY_COLOR[b.rarity as Rarity] }}>🃏 {b.name}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {b.uses}/{b.max_uses} usos · {owner ? `📦 ${owner.name}` : "🏛️ Vault"}
+                    </p>
+                  </div>
+                  <RarityBadge rarity={b.rarity as Rarity} />
+                </button>
+              );
+            })}
         </div>
       )}
 
@@ -144,6 +207,15 @@ function DM() {
         <CharacterSheetModal characterId={openChar} campaignId={campaign.id} editor={dmCtx}
           onClose={() => setOpenChar(null)}
           onPickItem={(it) => setSelItem(it)} />
+      )}
+      {selBooster && (
+        <BoosterActions booster={selBooster} campaignId={campaign.id} players={players} dm={dmCtx}
+          onClose={() => setSelBooster(null)}
+          onEdit={() => { setEditBooster(selBooster); setSelBooster(null); }} />
+      )}
+      {(editBooster || creatingBooster) && (
+        <BoosterEditor booster={editBooster} campaignId={campaign.id}
+          onClose={() => { setEditBooster(null); setCreatingBooster(false); }} />
       )}
     </PageFrame>
   );

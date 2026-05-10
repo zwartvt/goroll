@@ -10,13 +10,14 @@ import { ItemModal } from "@/components/app/ItemModal";
 import { ConditionsPanel } from "@/components/app/ConditionsPanel";
 import { Settings, LogOut, Minus, Plus, Camera } from "lucide-react";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/campaign/profile")({
   component: Profile,
 });
 
 function Profile() {
-  const { campaign, character, items, logs, loading } = useGameData();
+  const { campaign, character, characters, items, logs, loading } = useGameData();
   const nav = useNavigate();
   const [imgModal, setImgModal] = useState(false);
   const [coinDelta, setCoinDelta] = useState<string>("");
@@ -170,10 +171,16 @@ function Profile() {
       <ConditionsPanel character={character} campaignId={campaign.id} canEdit={true} />
 
       {/* Quick links */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-2">
         <Link to="/campaign/equipment" className="btn-fantasy text-center">⚔️ Equipo</Link>
         <Link to="/campaign/inventory" className="btn-fantasy text-center" style={{ background: "linear-gradient(135deg, oklch(0.5 0.15 195), oklch(0.3 0.1 195))" }}>🎒 Mochila</Link>
         <Link to="/campaign/achievements" className="btn-fantasy text-center" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }}>🏆 Logros</Link>
+      </div>
+      <div className="grid grid-cols-1 gap-2 mb-4">
+        <Link to="/campaign/boosters" className="btn-fantasy text-center"
+          style={{ background: "linear-gradient(135deg, var(--rarity-purple), oklch(0.35 0.18 300))", color: "white" }}>
+          🃏 Potenciadores
+        </Link>
       </div>
 
       {/* Log */}
@@ -183,7 +190,10 @@ function Profile() {
           <div key={l.id} className={`text-xs bg-secondary/40 rounded px-2 py-1.5 leading-relaxed ${l.undone ? "opacity-50 line-through" : ""}`}>
             <LogSegments segments={l.segments as any}
               onItem={(id) => setOpenItem(id)}
-              onChar={(id) => setOpenChar(id)} />
+              onChar={(id) => {
+                if (!characters.find(c => c.id === id)) toast.error("Jugador no encontrado");
+                else setOpenChar(id);
+              }} />
             <p className="text-[9px] text-muted-foreground mt-0.5">{new Date(l.created_at).toLocaleTimeString()}</p>
           </div>
         ))}
