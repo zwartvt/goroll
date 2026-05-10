@@ -18,6 +18,7 @@ import { Route as CampaignProfileRouteImport } from './routes/campaign.profile'
 import { Route as CampaignInventoryRouteImport } from './routes/campaign.inventory'
 import { Route as CampaignEquipmentRouteImport } from './routes/campaign.equipment'
 import { Route as CampaignDmRouteImport } from './routes/campaign.dm'
+import { Route as CampaignBoostersRouteImport } from './routes/campaign.boosters'
 import { Route as CampaignAchievementsRouteImport } from './routes/campaign.achievements'
 
 const MasterRoute = MasterRouteImport.update({
@@ -65,6 +66,11 @@ const CampaignDmRoute = CampaignDmRouteImport.update({
   path: '/dm',
   getParentRoute: () => CampaignRoute,
 } as any)
+const CampaignBoostersRoute = CampaignBoostersRouteImport.update({
+  id: '/boosters',
+  path: '/boosters',
+  getParentRoute: () => CampaignRoute,
+} as any)
 const CampaignAchievementsRoute = CampaignAchievementsRouteImport.update({
   id: '/achievements',
   path: '/achievements',
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/campaign': typeof CampaignRouteWithChildren
   '/master': typeof MasterRoute
   '/campaign/achievements': typeof CampaignAchievementsRoute
+  '/campaign/boosters': typeof CampaignBoostersRoute
   '/campaign/dm': typeof CampaignDmRoute
   '/campaign/equipment': typeof CampaignEquipmentRoute
   '/campaign/inventory': typeof CampaignInventoryRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/campaign': typeof CampaignRouteWithChildren
   '/master': typeof MasterRoute
   '/campaign/achievements': typeof CampaignAchievementsRoute
+  '/campaign/boosters': typeof CampaignBoostersRoute
   '/campaign/dm': typeof CampaignDmRoute
   '/campaign/equipment': typeof CampaignEquipmentRoute
   '/campaign/inventory': typeof CampaignInventoryRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/campaign': typeof CampaignRouteWithChildren
   '/master': typeof MasterRoute
   '/campaign/achievements': typeof CampaignAchievementsRoute
+  '/campaign/boosters': typeof CampaignBoostersRoute
   '/campaign/dm': typeof CampaignDmRoute
   '/campaign/equipment': typeof CampaignEquipmentRoute
   '/campaign/inventory': typeof CampaignInventoryRoute
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/campaign'
     | '/master'
     | '/campaign/achievements'
+    | '/campaign/boosters'
     | '/campaign/dm'
     | '/campaign/equipment'
     | '/campaign/inventory'
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/campaign'
     | '/master'
     | '/campaign/achievements'
+    | '/campaign/boosters'
     | '/campaign/dm'
     | '/campaign/equipment'
     | '/campaign/inventory'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/campaign'
     | '/master'
     | '/campaign/achievements'
+    | '/campaign/boosters'
     | '/campaign/dm'
     | '/campaign/equipment'
     | '/campaign/inventory'
@@ -218,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CampaignDmRouteImport
       parentRoute: typeof CampaignRoute
     }
+    '/campaign/boosters': {
+      id: '/campaign/boosters'
+      path: '/boosters'
+      fullPath: '/campaign/boosters'
+      preLoaderRoute: typeof CampaignBoostersRouteImport
+      parentRoute: typeof CampaignRoute
+    }
     '/campaign/achievements': {
       id: '/campaign/achievements'
       path: '/achievements'
@@ -230,6 +249,7 @@ declare module '@tanstack/react-router' {
 
 interface CampaignRouteChildren {
   CampaignAchievementsRoute: typeof CampaignAchievementsRoute
+  CampaignBoostersRoute: typeof CampaignBoostersRoute
   CampaignDmRoute: typeof CampaignDmRoute
   CampaignEquipmentRoute: typeof CampaignEquipmentRoute
   CampaignInventoryRoute: typeof CampaignInventoryRoute
@@ -240,6 +260,7 @@ interface CampaignRouteChildren {
 
 const CampaignRouteChildren: CampaignRouteChildren = {
   CampaignAchievementsRoute: CampaignAchievementsRoute,
+  CampaignBoostersRoute: CampaignBoostersRoute,
   CampaignDmRoute: CampaignDmRoute,
   CampaignEquipmentRoute: CampaignEquipmentRoute,
   CampaignInventoryRoute: CampaignInventoryRoute,
@@ -260,3 +281,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
