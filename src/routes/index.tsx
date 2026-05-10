@@ -100,7 +100,7 @@ function Home() {
   async function createCampaign() {
     if (!user || !newCampaignName.trim()) return;
     const { data, error } = await (supabase as any).from("campaigns")
-      .insert({ name: newCampaignName.trim(), max_players: 999, owner_user_id: user.id }).select().single();
+      .insert({ name: newCampaignName.trim(), max_players: 999, owner_user_id: user.id, single_dm_only: singleDmOnly }).select().single();
     if (error) return toast.error(error.message);
     await (supabase as any).from("campaign_members").insert({ campaign_id: data.id, user_id: user.id, role });
     setNewCampaignName("");
@@ -110,17 +110,73 @@ function Home() {
   async function joinByCode() {
     if (!user || !joinCode.trim()) return;
     const code = joinCode.trim();
-    // Allow joining by exact campaign id or exact name (case-insensitive)
     let { data } = await (supabase as any).from("campaigns").select("*").eq("id", code).maybeSingle();
     if (!data) {
       const r = await (supabase as any).from("campaigns").select("*").ilike("name", code).maybeSingle();
       data = r.data;
     }
     if (!data) return toast.error("Campaña no encontrada");
-    await (supabase as any).from("campaign_members")
-      .upsert({ campaign_id: data.id, user_id: user.id, role }, { onConflict: "campaign_id,user_id" });
+    // For DM joins, gate via request flow (don't pre-create membership)
+    if (role !== "dm") {
+      await (supabase as any).from("campaign_members")
+        .upsert({ campaign_id: data.id, user_id: user.id, role }, { onConflict: "campaign_id,user_id" });
+    }
     setJoinCode("");
     await pickCampaign(data as Campaign);
+  }
+
+  const COOLDOWN_KEY = (cid: string) => `codice.dmreq.cooldown.${cid}`;
+
+  async function requestCoDM(c: Campaign) {
+    if (!user) return;
+    // Check cooldown
+    try {
+      const until = parseInt(localStorage.getItem(COOLDOWN_KEY(c.id)) || "0", 10);
+      const now = Date.now();
+      if (until > now) {
+        const sec = Math.ceil((until - now) / 1000);
+        toast.error(`Tu solicitud fue rechazada. Espera ${sec}s para reintentar.`);
+        return;
+      }
+    } catch {}
+    if ((c as any).single_dm_only) {
+      toast.error("Esta campaña solo permite 1 Dungeon Master.");
+      return;
+    }
+    // Already a DM member? skip request
+    const { data: mem } = await (supabase as any).from("campaign_members")
+      .select("role").eq("campaign_id", c.id).eq("user_id", user.id).maybeSingle();
+    if (mem?.role === "dm") {
+      enterAsDM(c);
+      return;
+    }
+    // Reuse existing pending request if any
+    const { data: existing } = await (supabase as any).from("dm_join_requests")
+      .select("*").eq("campaign_id", c.id).eq("requester_user_id", user.id)
+      .eq("status", "pending").maybeSingle();
+    let reqId = existing?.id as string | undefined;
+    if (!reqId) {
+      const { data: ins, error } = await (supabase as any).from("dm_join_requests")
+        .insert({ campaign_id: c.id, requester_user_id: user.id, requester_username: user.username, status: "pending" })
+        .select().single();
+      if (error) { toast.error(error.message); return; }
+      reqId = ins.id as string;
+    }
+    setCampaign(c);
+    setWaitingReqId(reqId!);
+  }
+
+  async function enterAsDM(c: Campaign) {
+    if (!user) return;
+    await (supabase as any).from("campaign_members")
+      .upsert({ campaign_id: c.id, user_id: user.id, role: "dm" }, { onConflict: "campaign_id,user_id" });
+    const { data: existing } = await (supabase as any).from("characters")
+      .select("*").eq("campaign_id", c.id).eq("user_id", user.id).eq("role", "dm").maybeSingle();
+    if (existing) { enterCampaign(c, existing as Character); return; }
+    const { data } = await (supabase as any).from("characters").insert({
+      campaign_id: c.id, user_id: user.id, name: user.username, role: "dm", color: "#fbbf24",
+    }).select().single();
+    enterCampaign(c, data as Character);
   }
 
   async function pickCampaign(c: Campaign) {
@@ -128,19 +184,51 @@ function Home() {
     if (role === "spectator") {
       enterCampaign(c, null);
     } else if (role === "dm") {
-      // ensure DM has a character row for this campaign
-      const { data: existing } = await (supabase as any).from("characters")
-        .select("*").eq("campaign_id", c.id).eq("user_id", user!.id).eq("role", "dm").maybeSingle();
-      if (existing) enterCampaign(c, existing as Character);
-      else {
-        const { data } = await (supabase as any).from("characters").insert({
-          campaign_id: c.id, user_id: user!.id, name: user!.username, role: "dm", color: "#fbbf24",
-        }).select().single();
-        enterCampaign(c, data as Character);
+      // Owner enters directly; non-owner goes through approval flow
+      if ((c as any).owner_user_id === user!.id) {
+        enterAsDM(c);
+      } else {
+        await requestCoDM(c);
       }
     } else {
       setStep("character");
     }
+  }
+
+  // Watch the pending request for resolution
+  useEffect(() => {
+    if (!waitingReqId || !campaign || !user) return;
+    let stop = false;
+    const finish = async (status: string) => {
+      if (status === "approved") {
+        toast.success("Solicitud aprobada");
+        await enterAsDM(campaign);
+      } else {
+        const cooldownUntil = Date.now() + 60_000;
+        try { localStorage.setItem(COOLDOWN_KEY(campaign.id), String(cooldownUntil)); } catch {}
+        toast.error("El DM rechazó tu solicitud. Reintenta en 1 minuto.");
+        setWaitingReqId(null);
+        setCampaign(null);
+      }
+    };
+    const ch = (supabase as any).channel(`dmreq:requester:${waitingReqId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "dm_join_requests", filter: `id=eq.${waitingReqId}` },
+        (payload: any) => { if (stop) return; const s = payload.new?.status; if (s && s !== "pending") finish(s); })
+      .subscribe();
+    // Initial check (in case it resolved before subscription)
+    (async () => {
+      const { data } = await (supabase as any).from("dm_join_requests").select("status").eq("id", waitingReqId).maybeSingle();
+      if (!stop && data && data.status !== "pending") finish(data.status);
+    })();
+    return () => { stop = true; (supabase as any).removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingReqId, campaign?.id, user?.id]);
+
+  async function cancelCoDMRequest() {
+    if (!waitingReqId) return;
+    await (supabase as any).from("dm_join_requests").delete().eq("id", waitingReqId);
+    setWaitingReqId(null);
+    setCampaign(null);
   }
 
   async function createCharacter() {
