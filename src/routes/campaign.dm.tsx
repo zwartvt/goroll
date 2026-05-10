@@ -20,10 +20,29 @@ export const Route = createFileRoute("/campaign/dm")({ component: DM });
 function DM() {
   const { character, characters, items, logs, campaign, loading } = useGameData();
   const nav = useNavigate();
-  const [tab, setTab] = useState<"log" | "create" | "vault" | "players">("log");
+  const [tab, setTab] = useState<"log" | "create" | "vault" | "boosters" | "players">("log");
   const [selItem, setSelItem] = useState<Item | null>(null);
   const [editItem, setEditItem] = useState<Item | null>(null);
   const [openChar, setOpenChar] = useState<string | null>(null);
+  const [boosters, setBoosters] = useState<Booster[]>([]);
+  const [boosterSearch, setBoosterSearch] = useState("");
+  const [selBooster, setSelBooster] = useState<Booster | null>(null);
+  const [editBooster, setEditBooster] = useState<Booster | null>(null);
+  const [creatingBooster, setCreatingBooster] = useState(false);
+
+  useEffect(() => {
+    if (!campaign) return;
+    const reload = async () => {
+      const { data } = await (supabase as any).from("boosters")
+        .select("*").eq("campaign_id", campaign.id).order("created_at");
+      setBoosters((data || []) as Booster[]);
+    };
+    reload();
+    const ch = (supabase as any).channel(`boosters:dm:${campaign.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "boosters", filter: `campaign_id=eq.${campaign.id}` }, reload)
+      .subscribe();
+    return () => { (supabase as any).removeChannel(ch); };
+  }, [campaign?.id]);
 
   if (loading || !character || !campaign) return <PageFrame><p className="text-center text-muted-foreground">Cargando...</p></PageFrame>;
 
