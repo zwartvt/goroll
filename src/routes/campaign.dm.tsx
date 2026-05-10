@@ -13,6 +13,7 @@ import { CharacterSheetModal } from "@/components/app/CharacterSheetModal";
 import { DMConditionsCreator } from "@/components/app/ConditionsPanel";
 import { BoosterEditor, BoosterActions } from "@/components/app/BoosterEditor";
 import { type Booster } from "@/components/app/BoosterCard";
+import { DMRequestGate } from "@/components/app/DMRequestGate";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -60,6 +61,7 @@ function DM() {
 
   return (
     <PageFrame>
+      <DMRequestGate campaignId={campaign.id} ownerUserId={(campaign as any).owner_user_id ?? null} />
       <header className="flex items-start justify-between gap-2 mb-3">
         <button onClick={logout} className="text-muted-foreground"><LogOut size={18}/></button>
         <div className="text-center">
@@ -129,6 +131,30 @@ function DM() {
             <input value={boosterSearch} onChange={e => setBoosterSearch(e.target.value)}
               placeholder="Buscar potenciador..." className="flex-1 bg-transparent outline-none text-sm" />
           </div>
+          <button
+            className="btn-fantasy w-full text-xs"
+            onClick={async () => {
+              const norm = (s: string) => s.trim().toLowerCase();
+              const seen = new Map<string, Booster>();
+              const dupes: string[] = [];
+              for (const b of [...boosters].sort((a, c) => a.created_at.localeCompare(c.created_at))) {
+                const k = norm(b.name);
+                if (seen.has(k)) dupes.push(b.id);
+                else seen.set(k, b);
+              }
+              if (!dupes.length) { toast.info("No hay potenciadores duplicados."); return; }
+              if (!confirm(`Se eliminarán ${dupes.length} potenciador(es) duplicado(s). ¿Continuar?`)) return;
+              const { error } = await (supabase as any).from("boosters").delete().in("id", dupes);
+              if (error) toast.error(error.message);
+              else {
+                toast.success(`${dupes.length} duplicados eliminados`);
+                await pushLog(campaign.id, [
+                  { t: "char", v: character.name, color: character.color, id: character.id },
+                  { t: "text", v: ` eliminó ${dupes.length} potenciador(es) duplicado(s).` },
+                ]);
+              }
+            }}
+          >🧹 Eliminar duplicados</button>
           {boosters.length === 0 && <p className="text-center text-xs text-muted-foreground py-6">Sin potenciadores. Crea uno desde "Crear".</p>}
           {boosters
             .filter(b => !boosterSearch || b.name.toLowerCase().includes(boosterSearch.toLowerCase()))
