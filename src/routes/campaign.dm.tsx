@@ -5,6 +5,7 @@ import { LogOut, Plus, Send, Trophy, Pencil, Undo2, Search } from "lucide-react"
 import { SLOTS, RARITY_BONUS, RARITY_COLOR, RARITY_LABEL, ITEM_CATEGORIES, isWeapon, setSession, type Item, type ItemCategory, type Rarity, type Slot, type Character, type LogRow } from "@/lib/game";
 import { supabase } from "@/integrations/supabase/client";
 import { pushLog, type UndoAction } from "@/lib/log";
+import { clampHpForOwner } from "@/lib/hp";
 import { LogSegments } from "@/components/app/LogSegments";
 import { LogList } from "@/components/app/LogList";
 import { RarityBadge } from "@/components/app/RarityBadge";
