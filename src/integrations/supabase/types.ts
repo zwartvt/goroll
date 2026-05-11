@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievement_templates: {
+        Row: {
+          campaign_id: string
+          color: string
+          created_at: string
+          id: string
+          label: string
+        }
+        Insert: {
+          campaign_id: string
+          color?: string
+          created_at?: string
+          id?: string
+          label: string
+        }
+        Update: {
+          campaign_id?: string
+          color?: string
+          created_at?: string
+          id?: string
+          label?: string
+        }
+        Relationships: []
+      }
       achievements: {
         Row: {
           character_id: string
