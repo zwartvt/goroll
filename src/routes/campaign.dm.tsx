@@ -32,6 +32,8 @@ function DM() {
   const [selBooster, setSelBooster] = useState<Booster | null>(null);
   const [editBooster, setEditBooster] = useState<Booster | null>(null);
   const [creatingBooster, setCreatingBooster] = useState(false);
+  const [boosterSel, setBoosterSel] = useState<Set<string>>(new Set());
+  const [boosterSelectMode, setBoosterSelectMode] = useState(false);
 
   useEffect(() => {
     if (!campaign) return;
