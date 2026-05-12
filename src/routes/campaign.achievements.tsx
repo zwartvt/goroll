@@ -78,6 +78,8 @@ function Page() {
     if (!ids.length) return;
     const rows = ids.map(id => ({ character_id: id, label: tpl.label, color: tpl.color }));
     await supabase.from("achievements").insert(rows);
+    // Remove the template from the vault — it has been delivered.
+    await supabase.from("achievement_templates").delete().eq("id", tpl.id);
     if (campaign) {
       const named = players.filter(p => ids.includes(p.id));
       await pushLog(campaign.id, [
@@ -110,7 +112,12 @@ function Page() {
   }
 
   async function returnToVault(a: any) {
-    await supabase.from("achievement_templates").insert([{ campaign_id: campaign!.id, label: a.label, color: a.color }]);
+    // Avoid creating duplicate vault entries with same label+color.
+    const { data: existing } = await supabase.from("achievement_templates")
+      .select("id").eq("campaign_id", campaign!.id).eq("label", a.label).eq("color", a.color).limit(1);
+    if (!existing || existing.length === 0) {
+      await supabase.from("achievement_templates").insert([{ campaign_id: campaign!.id, label: a.label, color: a.color }]);
+    }
     await supabase.from("achievements").delete().eq("id", a.id);
     setSelectedAch(null);
   }
@@ -152,7 +159,7 @@ function Page() {
 
   // DM view
   return (
-    <PageFrame title="Logros" subtitle="Administrador" right={<Link to="/campaign/profile" className="text-muted-foreground"><ArrowLeft size={20}/></Link>}>
+    <PageFrame title="Logros" subtitle="Administrador" right={<Link to="/campaign/dm" className="text-muted-foreground"><ArrowLeft size={20}/></Link>}>
       <div className="ornate-card p-6 text-center mb-4">
         <Trophy className="mx-auto text-[var(--gold)]" size={48} />
       </div>
