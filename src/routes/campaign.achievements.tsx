@@ -78,6 +78,8 @@ function Page() {
     if (!ids.length) return;
     const rows = ids.map(id => ({ character_id: id, label: tpl.label, color: tpl.color }));
     await supabase.from("achievements").insert(rows);
+    // Remove the template from the vault — it has been delivered.
+    await supabase.from("achievement_templates").delete().eq("id", tpl.id);
     if (campaign) {
       const named = players.filter(p => ids.includes(p.id));
       await pushLog(campaign.id, [
