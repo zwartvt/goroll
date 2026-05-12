@@ -125,11 +125,8 @@ function Profile() {
           <div className="ornate-card p-2 text-center col-span-2">
             <p className="text-[9px] uppercase text-muted-foreground">🪙 Monedas</p>
             <p className="font-display text-base text-[var(--gold)]">{character.coins}</p>
-            <div className="flex gap-1 mt-1">
-              <input value={coinDelta} onChange={e => setCoinDelta(e.target.value.replace(/[^\-0-9]/g, ""))}
-                placeholder="±" inputMode="numeric"
-                className="flex-1 bg-input border border-border rounded px-1 py-0.5 text-[11px] text-center w-0" />
-              <button onClick={applyCoins} className="text-[10px] px-2 rounded bg-[var(--gold)] text-black font-display">OK</button>
+            <div className="mt-1">
+              <CoinsAdjuster onApply={changeCoins} />
             </div>
           </div>
         </div>
