@@ -52,6 +52,22 @@ export const RARITY_LABEL: Record<Rarity, string> = {
   gold: "Legendaria",
 };
 
+/** Rarity name as used in user-facing booster files (Spanish color names). */
+export const RARITY_NAME_ES: Record<Rarity, string> = {
+  white: "Blanca",
+  blue: "Azul",
+  purple: "Morada",
+  gold: "Dorada",
+};
+
+/** Bonus a sumar a "Dados a tirar" según la rareza del potenciador. */
+export const RARITY_DICE_BONUS: Record<Rarity, number> = {
+  white: 3,
+  blue: 4,
+  purple: 5,
+  gold: 6,
+};
+
 export function modifier(score: number) {
   return Math.floor((score - 10) / 2);
 }
