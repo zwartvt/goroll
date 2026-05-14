@@ -189,13 +189,15 @@ export function BoosterActions({
   const isDM = !!dm;
   const color = RARITY_COLOR[booster.rarity as Rarity];
 
-  async function pushBoosterLog(actor: Character, verb: string) {
+  async function pushBoosterLog(actor: Character, verb: string, trailing?: string) {
     const { pushLog } = await import("@/lib/log");
-    await pushLog(campaignId, [
+    const segs: any[] = [
       { t: "char", v: actor.name, color: actor.color, id: actor.id },
       { t: "text", v: verb },
       { t: "item", v: booster.name, rarity: booster.rarity as Rarity },
-    ]);
+    ];
+    if (trailing) segs.push({ t: "text", v: trailing });
+    await pushLog(campaignId, segs);
   }
 
   async function useBooster() {
@@ -208,10 +210,11 @@ export function BoosterActions({
         owner_character_id: null,
         in_dm_vault: true,
       }).eq("id", booster.id);
+      await pushBoosterLog(character, "usó el potenciador", "(último)");
     } else {
       await (supabase as any).from("boosters").update({ uses: remaining }).eq("id", booster.id);
+      await pushBoosterLog(character, "usó el potenciador", `(${remaining} restantes)`);
     }
-    await pushBoosterLog(character, "usó el potenciador");
     onClose();
   }
 
