@@ -12,7 +12,7 @@ import { RarityBadge } from "@/components/app/RarityBadge";
 import { ItemEditor } from "@/components/app/ItemEditor";
 import { CharacterSheetModal } from "@/components/app/CharacterSheetModal";
 import { DMConditionsCreator } from "@/components/app/ConditionsPanel";
-import { BoosterEditor, BoosterActions } from "@/components/app/BoosterEditor";
+import { BoosterEditor } from "@/components/app/BoosterEditor";
 import { type Booster } from "@/components/app/BoosterCard";
 import { DMRequestGate } from "@/components/app/DMRequestGate";
 import { useEffect, useState } from "react";
