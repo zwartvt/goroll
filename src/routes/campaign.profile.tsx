@@ -15,6 +15,7 @@ import { User, LogOut, Minus, Plus, Camera } from "lucide-react";
 import { FullscreenButton } from "@/components/app/AppShell";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/campaign/profile")({
   component: Profile,
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/campaign/profile")({
 function Profile() {
   const { campaign, character, characters, items, logs, onlineIds, loading } = useGameData();
   const nav = useNavigate();
+  const { t } = useT();
   const [imgModal, setImgModal] = useState(false);
   const [openChar, setOpenChar] = useState<string | null>(null);
   const [openItem, setOpenItem] = useState<string | null>(null);
@@ -30,7 +32,7 @@ function Profile() {
   // When opened from Escenario tab (or from the log), force read-only sheet.
   const [openCharReadOnly, setOpenCharReadOnly] = useState(false);
 
-  if (loading || !character || !campaign) return <PageFrame><p className="text-center text-muted-foreground">Cargando...</p></PageFrame>;
+  if (loading || !character || !campaign) return <PageFrame><p className="text-center text-muted-foreground">{t("profile.loading")}</p></PageFrame>;
 
   const equipped = items.filter(i => i.owner_character_id === character.id && i.equipped);
   const stats = totals(character, equipped);
@@ -44,7 +46,7 @@ function Profile() {
     await supabase.from("characters").update({ current_hp: next }).eq("id", character.id);
     await pushLog(campaign.id, [
       { t: "char", v: character.name, color: character.color, id: character.id },
-      { t: "text", v: delta > 0 ? "se curó" : "recibió daño:" },
+      { t: "text", v: delta > 0 ? t("profile.healed") : t("profile.tookDmg") },
       delta > 0 ? { t: "gain", v: `+${delta}` } : { t: "loss", v: `${delta}` },
       { t: "text", v: `(${next}/${stats.maxHp})` },
     ], { kind: "character.update", id: character.id, prev });
@@ -57,7 +59,7 @@ function Profile() {
     await supabase.from("characters").update({ coins: next }).eq("id", character.id);
     await pushLog(campaign.id, [
       { t: "char", v: character.name, color: character.color, id: character.id },
-      { t: "text", v: n > 0 ? "ganó" : "gastó" },
+      { t: "text", v: n > 0 ? t("profile.gained") : t("profile.spent") },
       { t: "coins", v: `${Math.abs(n)}` },
       { t: "text", v: `(${next})` },
     ], { kind: "character.update", id: character.id, prev });
@@ -67,9 +69,9 @@ function Profile() {
 
   /** Open a character sheet from any source (log, escenario). Always read-only here. */
   function openCharFromLog(id: string | undefined, readOnly = false) {
-    if (!id) { toast.error("No se pudo abrir la ficha: el registro del log no tiene un personaje válido."); return; }
+    if (!id) { toast.error(t("profile.cantOpenSheetNoChar")); return; }
     const exists = characters.some(c => c.id === id) || character?.id === id;
-    if (!exists) { toast.error("No se pudo abrir la ficha: el personaje no está en esta campaña."); return; }
+    if (!exists) { toast.error(t("profile.cantOpenSheetMissing")); return; }
     setOpenCharReadOnly(readOnly);
     setOpenChar(id);
   }
@@ -91,15 +93,15 @@ function Profile() {
     <PageFrame>
       <header className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-1.5">
-          <button onClick={logout} className="text-muted-foreground hover:text-foreground" aria-label="Salir"><LogOut size={18} /></button>
+          <button onClick={logout} className="text-muted-foreground hover:text-foreground" aria-label={t("profile.logoutAria")}><LogOut size={18} /></button>
           <FullscreenButton />
         </div>
         <div className="text-center">
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{campaign.name}</p>
           <h1 className="font-display text-xl rune-glow">{character.name}</h1>
-          <p className="text-xs text-muted-foreground">{character.race || "Humano"} / {character.class || "Aventurero"}</p>
+          <p className="text-xs text-muted-foreground">{character.race || t("profile.defaultRace")} / {character.class || t("profile.defaultClass")}</p>
         </div>
-        <Link to="/campaign/settings" className="text-muted-foreground hover:text-foreground" aria-label="Estadísticas"><User size={20} /></Link>
+        <Link to="/campaign/settings" className="text-muted-foreground hover:text-foreground" aria-label={t("profile.statsAria")}><User size={20} /></Link>
       </header>
       <div className="gem-divider mb-4" />
 
@@ -112,7 +114,7 @@ function Profile() {
             ? { background: "linear-gradient(135deg, oklch(0.45 0.16 145), oklch(0.30 0.12 145))", color: "white" }
             : undefined}
         >
-          🧙 Personaje
+          {t("profile.tabCharacter")}
         </button>
         <button
           onClick={() => setActiveTab("escenario")}
@@ -121,7 +123,7 @@ function Profile() {
             ? { background: "linear-gradient(135deg, oklch(0.50 0.15 195), oklch(0.30 0.12 195))", color: "white" }
             : undefined}
         >
-          ⛺ Escenario
+          {t("profile.tabScene")}
         </button>
       </div>
 
