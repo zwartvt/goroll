@@ -10,6 +10,7 @@ import { CharacterSheetModal } from "@/components/app/CharacterSheetModal";
 import { ItemModal } from "@/components/app/ItemModal";
 import { BoosterPeek } from "@/components/app/BoosterEditor";
 import { Escenario } from "@/components/app/Escenario";
+import { useVoice } from "@/lib/useVoice";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/campaign/spectator")({ component: Spectator });
