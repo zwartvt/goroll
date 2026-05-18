@@ -6,11 +6,13 @@ import { DeleteCampaignButton } from "./DeleteCampaignButton";
 type Props = {
   campaign: Campaign;
   currentUserId: string;
-  /** User-chosen role at the role-picker step. */
   role: "player" | "dm" | "spectator";
   onPlay: () => void;
   onClose: () => void;
+  onDeleted?: () => void;
 };
+
+export function CampaignActionsModal({ campaign, currentUserId, role, onPlay, onClose, onDeleted }: Props) {
 
 /**
  * Modal that opens when the user picks a campaign from their list.
