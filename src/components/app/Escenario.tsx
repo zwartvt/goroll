@@ -71,6 +71,7 @@ export function Escenario({ characters, onlineIds, logs, selfId, onOpenChar, onO
             renderRow={(l: any) => (
               <div key={l.id} className={`text-xs bg-secondary/40 rounded px-2 py-1.5 leading-relaxed ${l.undone ? "opacity-50 line-through" : ""}`}>
                 <LogSegments segments={l.segments as any}
+                  nameOverrides={nameOverrides}
                   onItem={(id) => onOpenItem?.(id)}
                   onChar={(id) => onOpenChar(id)} />
                 <p className="text-[9px] text-muted-foreground mt-0.5">{new Date(l.created_at).toLocaleTimeString()}</p>
