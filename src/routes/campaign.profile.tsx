@@ -177,8 +177,6 @@ function Profile() {
               </div>
             </div>
           </div>
-            </div>
-          </div>
 
           {/* HP bar */}
           <div className="ornate-card p-2 mb-3">
