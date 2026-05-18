@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { attemptLogin } from "@/lib/auth.functions";
+import { CampaignActionsModal } from "@/components/app/CampaignActionsModal";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Vamos a Rolear" }] }),
