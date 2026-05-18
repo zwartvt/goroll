@@ -15,6 +15,9 @@ import { DMConditionsCreator } from "@/components/app/ConditionsPanel";
 import { BoosterEditor } from "@/components/app/BoosterEditor";
 import { type Booster } from "@/components/app/BoosterCard";
 import { DMRequestGate } from "@/components/app/DMRequestGate";
+import { Escenario } from "@/components/app/Escenario";
+import { DeleteCampaignButton } from "@/components/app/DeleteCampaignButton";
+import { getStoredUser } from "@/lib/game";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
