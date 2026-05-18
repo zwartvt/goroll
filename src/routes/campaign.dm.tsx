@@ -87,7 +87,8 @@ function DM() {
           <p className="text-xs text-muted-foreground">{t("dm.dungeonMaster")}</p>
         </div>
         <div className="flex items-center gap-1.5">
-          <MicToggle enabled={voice.enabled} onToggle={voice.toggle} />
+          <MicToggle enabled={voice.enabled} onToggle={voice.toggle} onLongPress={() => setMicSettingsOpen(true)} />
+          <MicSettingsModal open={micSettingsOpen} onOpenChange={setMicSettingsOpen} />
           <Link to="/campaign/achievements" className="text-muted-foreground"><Trophy size={20}/></Link>
         </div>
       </header>
