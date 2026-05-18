@@ -191,12 +191,19 @@ function Profile() {
               </div>
               <span className="font-display text-xs">{character.current_hp}/{stats.maxHp}</span>
             </div>
-            <div className="flex gap-1 mt-2 justify-center">
-              <button className="btn-fantasy !py-1 !px-2 !text-[10px]" onClick={() => changeHp(-5)}><Minus size={10} className="inline"/>5</button>
-              <button className="btn-fantasy !py-1 !px-2 !text-[10px]" onClick={() => changeHp(-1)}><Minus size={10} className="inline"/>1</button>
-              <button className="btn-fantasy !py-1 !px-2 !text-[10px]" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }} onClick={() => changeHp(1)}><Plus size={10} className="inline"/>1</button>
-              <button className="btn-fantasy !py-1 !px-2 !text-[10px]" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }} onClick={() => changeHp(5)}><Plus size={10} className="inline"/>5</button>
-            </div>
+            <button
+              onClick={() => setHpModal(true)}
+              aria-label={t("profile.modifyHpAria")}
+              className="btn-fantasy w-full mt-2 flex items-center justify-center gap-2 font-display tracking-wider"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.72 0.18 350), oklch(0.55 0.20 350))",
+                color: "white",
+                boxShadow: "0 6px 18px -8px oklch(0.55 0.20 350 / 0.6)",
+              }}
+            >
+              <HeartPulse size={16} />
+              <span>{t("profile.modifyHp")}</span>
+            </button>
           </div>
 
           {/* Atributos */}
