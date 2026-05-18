@@ -268,12 +268,22 @@ function Home() {
     let stop = false;
     const finish = async (status: string) => {
       if (status === "approved") {
-        toast.success(t("home.reqApproved"));
-        await enterAsDM(campaign);
+        if (waitingKind === "player_rejoin") {
+          toast.success(t("rejoin.approved"));
+          setWaitingReqId(null);
+          setStep("character");
+        } else {
+          toast.success(t("home.reqApproved"));
+          await enterAsDM(campaign);
+        }
       } else {
-        const cooldownUntil = Date.now() + 60_000;
-        try { localStorage.setItem(COOLDOWN_KEY(campaign.id), String(cooldownUntil)); } catch {}
-        toast.error(t("home.reqRejected"));
+        if (waitingKind === "player_rejoin") {
+          toast.error(t("rejoin.rejected"));
+        } else {
+          const cooldownUntil = Date.now() + 60_000;
+          try { localStorage.setItem(COOLDOWN_KEY(campaign.id), String(cooldownUntil)); } catch {}
+          toast.error(t("home.reqRejected"));
+        }
         setWaitingReqId(null);
         setCampaign(null);
       }
@@ -282,14 +292,13 @@ function Home() {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "dm_join_requests", filter: `id=eq.${waitingReqId}` },
         (payload: any) => { if (stop) return; const s = payload.new?.status; if (s && s !== "pending") finish(s); })
       .subscribe();
-    // Initial check (in case it resolved before subscription)
     (async () => {
       const { data } = await (supabase as any).from("dm_join_requests").select("status").eq("id", waitingReqId).maybeSingle();
       if (!stop && data && data.status !== "pending") finish(data.status);
     })();
     return () => { stop = true; (supabase as any).removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [waitingReqId, campaign?.id, user?.id]);
+  }, [waitingReqId, campaign?.id, user?.id, waitingKind]);
 
   async function cancelCoDMRequest() {
     if (!waitingReqId) return;
