@@ -372,3 +372,112 @@ function ImageEditor({ character, onClose }: { character: any; onClose: () => vo
     </div>
   );
 }
+
+function HpModal({
+  current, max, onApply, onClose,
+}: {
+  current: number;
+  max: number;
+  onApply: (delta: number) => Promise<void> | void;
+  onClose: () => void;
+}) {
+  const { t } = useT();
+  const [subVal, setSubVal] = useState("");
+  const [addVal, setAddVal] = useState("");
+  const sub = parseInt(subVal, 10);
+  const add = parseInt(addVal, 10);
+
+  async function quick(delta: number) {
+    await onApply(delta);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/85 z-[80] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="ornate-card p-4 max-w-xs w-full space-y-4" onClick={e => e.stopPropagation()}>
+        <h3 className="font-display text-lg text-center flex items-center justify-center gap-2">
+          <HeartPulse size={18} className="text-[oklch(0.72_0.18_350)]" />
+          {t("profile.hpModalTitle")}
+        </h3>
+        <p className="text-center text-xs text-muted-foreground -mt-2">
+          {current}/{max}
+        </p>
+
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground text-center mb-1">
+            {t("profile.hpQuickAdjust")}
+          </p>
+          <div className="grid grid-cols-4 gap-1">
+            <button className="btn-fantasy !py-1.5 !px-2 !text-[11px]" onClick={() => quick(-5)}>
+              <Minus size={11} className="inline" />5
+            </button>
+            <button className="btn-fantasy !py-1.5 !px-2 !text-[11px]" onClick={() => quick(-1)}>
+              <Minus size={11} className="inline" />1
+            </button>
+            <button className="btn-fantasy !py-1.5 !px-2 !text-[11px]"
+              style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }}
+              onClick={() => quick(1)}>
+              <Plus size={11} className="inline" />1
+            </button>
+            <button className="btn-fantasy !py-1.5 !px-2 !text-[11px]"
+              style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }}
+              onClick={() => quick(5)}>
+              <Plus size={11} className="inline" />5
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground text-center mb-1">
+            {t("profile.hpExact")}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <input
+                type="number" min={1} inputMode="numeric"
+                value={subVal}
+                onChange={e => setSubVal(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder={t("profile.hpAmountPh")}
+                className="w-full bg-input border border-border rounded px-2 py-1.5 text-center text-sm"
+              />
+              <button
+                className="btn-fantasy w-full !py-1 !text-[11px] flex items-center justify-center gap-1"
+                style={{ background: "var(--gradient-blood, var(--loss))", color: "white" }}
+                disabled={!sub || sub <= 0}
+                onClick={async () => {
+                  if (!sub || sub <= 0) return;
+                  await onApply(-sub);
+                  setSubVal("");
+                }}
+              >
+                <Minus size={11} /> {t("profile.hpSubtract")}
+              </button>
+            </div>
+            <div className="space-y-1">
+              <input
+                type="number" min={1} inputMode="numeric"
+                value={addVal}
+                onChange={e => setAddVal(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder={t("profile.hpAmountPh")}
+                className="w-full bg-input border border-border rounded px-2 py-1.5 text-center text-sm"
+              />
+              <button
+                className="btn-fantasy w-full !py-1 !text-[11px] flex items-center justify-center gap-1"
+                style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }}
+                disabled={!add || add <= 0}
+                onClick={async () => {
+                  if (!add || add <= 0) return;
+                  await onApply(add);
+                  setAddVal("");
+                }}
+              >
+                <Plus size={11} /> {t("profile.hpAdd")}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button className="btn-fantasy w-full" onClick={onClose}>{t("common.cancel")}</button>
+      </div>
+    </div>
+  );
+}
