@@ -1,7 +1,9 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { getSession, setSession, type Campaign, type Character, type Item, type LogRow, type Achievement } from "./game";
+
+export type DmLabel = { name: string; color: string };
 
 type GameData = {
   campaign: Campaign | null;
@@ -13,6 +15,10 @@ type GameData = {
   loading: boolean;
   /** Set of character ids currently connected (via Realtime presence). */
   onlineIds: Set<string>;
+  /** Display overrides for DM/Co-DM characters used by the log (character_id → label). */
+  dmLabels: Record<string, DmLabel>;
+  /** character_ids belonging to DM-role users in this campaign (hidden from the player table). */
+  dmCharacterIds: Set<string>;
   reload: () => Promise<void>;
 };
 
@@ -30,15 +36,18 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
 
   const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
 
+  const [members, setMembers] = useState<Array<{ user_id: string; role: string; created_at: string }>>([]);
+
   const load = useCallback(async () => {
     const s = getSession();
     if (!s) { nav({ to: "/" }); return; }
-    const [c1, c2, c3, c4, c5] = await Promise.all([
+    const [c1, c2, c3, c4, c5, c6] = await Promise.all([
       supabase.from("campaigns").select("*").eq("id", s.campaignId).single(),
       s.characterId ? supabase.from("characters").select("*").eq("id", s.characterId).single() : Promise.resolve({ data: null }),
       supabase.from("characters").select("*").eq("campaign_id", s.campaignId),
       supabase.from("items").select("*").eq("campaign_id", s.campaignId),
       supabase.from("logs").select("*").eq("campaign_id", s.campaignId).order("created_at", { ascending: false }).limit(100),
+      (supabase as any).from("campaign_members").select("user_id,role,created_at").eq("campaign_id", s.campaignId).order("created_at"),
     ]);
     if (!c1.data) { setSession(null); nav({ to: "/" }); return; }
     setCampaign(c1.data as Campaign);
@@ -47,6 +56,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     setCharacters(chars);
     setItems((c4.data || []) as Item[]);
     setLogs((c5.data || []) as LogRow[]);
+    setMembers((c6.data || []) as any);
     const charIds = chars.map(c => c.id);
     const { data: ach } = charIds.length
       ? await supabase.from("achievements").select("*").in("character_id", charIds)
@@ -67,6 +77,8 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "achievements" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "boosters", filter: `campaign_id=eq.${s.campaignId}` }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "character_conditions" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "campaign_members", filter: `campaign_id=eq.${s.campaignId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "campaigns", filter: `id=eq.${s.campaignId}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [load]);
@@ -93,8 +105,46 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  // Compute DM/Co-DM display labels for the log + figure out which character ids
+  // belong to DM-role users (those characters should not appear in the player table
+  // and should not be exposed as online in the "Mesa de jugadores").
+  const { dmLabels, dmCharacterIds } = useMemo(() => {
+    const ownerId = (campaign as any)?.owner_user_id as string | null | undefined;
+    // Order DM members by created_at; owner first, then co-DMs in join order.
+    const dmMembers = members
+      .filter(m => m.role === "dm")
+      .sort((a, b) => {
+        if (a.user_id === ownerId) return -1;
+        if (b.user_id === ownerId) return 1;
+        return a.created_at.localeCompare(b.created_at);
+      });
+    const labelByUserId: Record<string, string> = {};
+    let coCounter = 0;
+    for (const m of dmMembers) {
+      if (m.user_id === ownerId) labelByUserId[m.user_id] = "DM";
+      else {
+        coCounter++;
+        labelByUserId[m.user_id] = coCounter === 1 ? "Co-DM" : `Co-DM ${coCounter}`;
+      }
+    }
+    const labels: Record<string, DmLabel> = {};
+    const ids = new Set<string>();
+    for (const c of characters) {
+      // A character is treated as DM-controlled when EITHER the character row says role='dm'
+      // OR its owning user currently has the DM role in this campaign.
+      const uid = (c as any).user_id as string | null;
+      const userIsDm = uid && labelByUserId[uid];
+      if (c.role === "dm" || userIsDm) {
+        ids.add(c.id);
+        const label = (uid && labelByUserId[uid]) || "DM";
+        labels[c.id] = { name: label, color: "var(--gold)" };
+      }
+    }
+    return { dmLabels: labels, dmCharacterIds: ids };
+  }, [members, characters, campaign]);
+
   return (
-    <Ctx.Provider value={{ campaign, character, characters, items, logs, achievements, loading, onlineIds, reload: load }}>
+    <Ctx.Provider value={{ campaign, character, characters, items, logs, achievements, loading, onlineIds, dmLabels, dmCharacterIds, reload: load }}>
       {children}
     </Ctx.Provider>
   );
@@ -106,6 +156,7 @@ export function useGameData(): GameData {
   if (v) return v;
   return {
     campaign: null, character: null, characters: [], items: [], logs: [], achievements: [],
-    loading: true, onlineIds: new Set(), reload: async () => {},
+    loading: true, onlineIds: new Set(), dmLabels: {}, dmCharacterIds: new Set(), reload: async () => {},
   };
 }
+

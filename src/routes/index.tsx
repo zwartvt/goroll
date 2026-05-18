@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { attemptLogin } from "@/lib/auth.functions";
+import { CampaignActionsModal } from "@/components/app/CampaignActionsModal";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Vamos a Rolear" }] }),
@@ -35,7 +36,9 @@ function Home() {
   const [search, setSearch] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [singleDmOnly, setSingleDmOnly] = useState(false);
+  const [lockNames, setLockNames] = useState(false);
   const [waitingReqId, setWaitingReqId] = useState<string | null>(null);
+  const [actionCampaign, setActionCampaign] = useState<Campaign | null>(null);
 
   // character
   const [myChars, setMyChars] = useState<Character[]>([]);
@@ -100,7 +103,7 @@ function Home() {
   async function createCampaign() {
     if (!user || !newCampaignName.trim()) return;
     const { data, error } = await (supabase as any).from("campaigns")
-      .insert({ name: newCampaignName.trim(), max_players: 999, owner_user_id: user.id, single_dm_only: singleDmOnly }).select().single();
+      .insert({ name: newCampaignName.trim(), max_players: 999, owner_user_id: user.id, single_dm_only: singleDmOnly, lock_character_names: lockNames }).select().single();
     if (error) return toast.error(error.message);
     await (supabase as any).from("campaign_members").insert({ campaign_id: data.id, user_id: user.id, role });
     setNewCampaignName("");
@@ -319,7 +322,7 @@ function Home() {
             placeholder="🔎 Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
           <div className="max-h-56 overflow-y-auto space-y-2">
             {campaigns.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(c => (
-              <button key={c.id} onClick={() => pickCampaign(c)}
+              <button key={c.id} onClick={() => setActionCampaign(c)}
                 className="w-full rounded-lg border border-border bg-card px-3 py-3 text-left hover:border-[var(--gold)]/60 transition">
                 <span className="font-display text-base">{c.name}</span>
               </button>
@@ -348,6 +351,10 @@ function Home() {
                 <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                   <input type="checkbox" checked={singleDmOnly} onChange={e => setSingleDmOnly(e.target.checked)} />
                   Solo un Dungeon Master en la campaña
+                </label>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                  <input type="checkbox" checked={lockNames} onChange={e => setLockNames(e.target.checked)} />
+                  Sin posibilidad de editar nombre de personaje
                 </label>
               </div>
             </>
@@ -382,6 +389,16 @@ function Home() {
           </div>
           <button className="text-xs text-muted-foreground underline w-full text-center" onClick={() => setStep("campaign")}>← Otra campaña</button>
         </div>
+      )}
+
+      {actionCampaign && user && (
+        <CampaignActionsModal
+          campaign={actionCampaign}
+          currentUserId={user.id}
+          role={role}
+          onPlay={() => { const c = actionCampaign; setActionCampaign(null); pickCampaign(c); }}
+          onClose={() => setActionCampaign(null)}
+        />
       )}
     </PageFrame>
   );

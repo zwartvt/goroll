@@ -16,15 +16,14 @@ import { BoosterEditor } from "@/components/app/BoosterEditor";
 import { type Booster } from "@/components/app/BoosterCard";
 import { DMRequestGate } from "@/components/app/DMRequestGate";
 import { Escenario } from "@/components/app/Escenario";
-import { DeleteCampaignButton } from "@/components/app/DeleteCampaignButton";
-import { getStoredUser } from "@/lib/game";
+
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/campaign/dm")({ component: DM });
 
 function DM() {
-  const { character, characters, items, logs, campaign, onlineIds, loading } = useGameData();
+  const { character, characters, items, logs, campaign, onlineIds, loading, dmLabels, dmCharacterIds } = useGameData();
   const nav = useNavigate();
   const [tab, setTab] = useState<"log" | "create" | "vault" | "boosters" | "escenario">("log");
   const [selItem, setSelItem] = useState<Item | null>(null);
@@ -281,13 +280,10 @@ function DM() {
             onlineIds={onlineIds}
             logs={logs}
             selfId={null}
+            dmCharacterIds={dmCharacterIds}
+            nameOverrides={dmLabels}
             onOpenChar={(id) => setOpenChar(id)}
             onOpenItem={openItemFromId}
-          />
-          <DeleteCampaignButton
-            campaignId={campaign.id}
-            campaignName={campaign.name}
-            isOwner={!!(campaign as any).owner_user_id && (campaign as any).owner_user_id === getStoredUser()?.id}
           />
         </>
       )}
