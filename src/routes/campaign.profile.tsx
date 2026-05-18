@@ -242,55 +242,14 @@ function Profile() {
       )}
 
       {activeTab === "escenario" && (
-        <>
-          {/* Mesa de jugadores */}
-          <div className="ornate-card p-3 mb-4">
-            <h2 className="font-display text-sm uppercase tracking-widest text-center mb-2 text-[var(--gold)]">✦ Mesa de jugadores ✦</h2>
-            <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase text-[var(--gain)]">
-              <span className="w-2 h-2 rounded-full bg-[var(--gain)] inline-block" /> En línea
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-3">
-              {online.map(p => <PlayerCard key={p.id} c={p} online onClick={() => openCharFromLog(p.id, true)} isSelf={p.id === character.id} />)}
-              {online.length === 0 && <p className="col-span-full text-[10px] text-muted-foreground text-center py-2">Nadie en línea</p>}
-            </div>
-            {offline.length > 0 && (
-              <>
-                <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase text-muted-foreground">
-                  <span className="w-2 h-2 rounded-full bg-muted-foreground/60 inline-block" /> Desconectados
-                </div>
-                {offline.length <= 3 ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {offline.map(p => <OfflineRow key={p.id} c={p} onClick={() => openCharFromLog(p.id, true)} />)}
-                  </div>
-                ) : (
-                  <button onClick={() => setOpenOffline(true)}
-                    className="w-full ornate-card p-3 text-center hover:border-[var(--gold)]/60 transition opacity-80">
-                    <div className="flex items-center justify-center gap-2 text-xs">
-                      <span className="font-display text-[var(--gold)]">{offline.length}</span>
-                      <span className="text-muted-foreground">desconectados</span>
-                      <span className="text-[var(--gold)]">···</span>
-                    </div>
-                    <p className="text-[9px] text-muted-foreground mt-1">Toca para ver todos</p>
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Log del escenario */}
-          <div className="ornate-card p-3">
-            <h2 className="font-display text-sm uppercase tracking-widest text-center mb-2 text-[var(--gold)]">📜 Log del escenario</h2>
-            <LogList rows={logs} initial={30} maxH="max-h-[50vh]" empty="Sin actividad aún."
-              renderRow={(l: any) => (
-                <div key={l.id} className={`text-xs bg-secondary/40 rounded px-2 py-1.5 leading-relaxed ${l.undone ? "opacity-50 line-through" : ""}`}>
-                  <LogSegments segments={l.segments as any}
-                    onItem={(id) => setOpenItem(id)}
-                    onChar={(id) => openCharFromLog(id, true)} />
-                  <p className="text-[9px] text-muted-foreground mt-0.5">{new Date(l.created_at).toLocaleTimeString()}</p>
-                </div>
-              )} />
-          </div>
-        </>
+        <Escenario
+          characters={characters}
+          onlineIds={onlineIds}
+          logs={logs}
+          selfId={character.id}
+          onOpenChar={(id) => openCharFromLog(id, true)}
+          onOpenItem={(id) => setOpenItem(id)}
+        />
       )}
 
       {imgModal && (
@@ -304,10 +263,6 @@ function Profile() {
       )}
       {openItem && (
         <ItemModal itemId={openItem} onClose={() => setOpenItem(null)} />
-      )}
-      {openOffline && (
-        <OfflineListModal players={offline} onClose={() => setOpenOffline(false)}
-          onPick={(id) => { setOpenOffline(false); openCharFromLog(id, true); }} />
       )}
     </PageFrame>
   );
