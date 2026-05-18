@@ -20,7 +20,7 @@ type Req = {
  * show a blocking modal until they answer Sí / No.
  */
 export function DMRequestGate({ campaignId, ownerUserId }: { campaignId: string; ownerUserId: string | null }) {
-  const t = useT();
+  const { t } = useT();
   const me = getStoredUser();
   const isOwner = !!me && !!ownerUserId && me.id === ownerUserId;
   const [pending, setPending] = useState<Req[]>([]);
