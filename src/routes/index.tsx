@@ -23,6 +23,7 @@ type Step = "login" | "role" | "campaign" | "character";
 
 function Home() {
   const nav = useNavigate();
+  const { t } = useT();
   const [user, setUser] = useState<StoredUser | null>(null);
   const [step, setStep] = useState<Step>("login");
 
