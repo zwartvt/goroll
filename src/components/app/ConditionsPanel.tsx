@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { pushLog } from "@/lib/log";
 import { toastSaved } from "@/lib/saved";
@@ -27,6 +27,22 @@ type ConditionRow = {
   damage_per_turn: number;
 };
 
+function slugifyLabel(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function getCatalogLabel(row: Pick<CatalogRow, "key" | "label">, t: (path: string, vars?: Record<string, string | number>) => string) {
+  const lookup = row.key || slugifyLabel(row.label);
+  const translated = t(`conditionNames.${lookup}`);
+  return translated === `conditionNames.${lookup}` ? row.label : translated;
+}
+
 export function ConditionsPanel({
   character,
   campaignId,
@@ -41,18 +57,26 @@ export function ConditionsPanel({
   const [adding, setAdding] = useState(false);
   const { t } = useT();
 
+  const catalogById = useMemo(() => new Map(catalog.map((entry) => [entry.id, entry])), [catalog]);
+
+  function getRowLabel(row: ConditionRow) {
+    const fromCatalog = row.catalog_id ? catalogById.get(row.catalog_id) : null;
+    return fromCatalog ? getCatalogLabel(fromCatalog, t) : row.label;
+  }
+
   async function reload() {
     const { data } = await (supabase as any).from("character_conditions")
       .select("*").eq("character_id", character.id).order("created_at");
     setRows((data || []) as ConditionRow[]);
   }
+
   async function loadCatalog() {
     const { data } = await (supabase as any).from("condition_effects_catalog")
       .select("*").or(`campaign_id.is.null,campaign_id.eq.${campaignId}`).order("label");
     setCatalog((data || []) as CatalogRow[]);
   }
 
-  useEffect(() => { reload(); loadCatalog(); /* eslint-disable-next-line */ }, [character.id]);
+  useEffect(() => { reload(); loadCatalog(); /* eslint-disable-next-line */ }, [character.id, campaignId]);
 
   useEffect(() => {
     const ch = (supabase as any).channel(`cond:${character.id}`)
@@ -64,13 +88,14 @@ export function ConditionsPanel({
 
   async function tick(c: ConditionRow) {
     const next = c.turns_left - 1;
+    const label = getRowLabel(c);
     if (c.damage_per_turn > 0) {
       const newHp = Math.max(0, character.current_hp - c.damage_per_turn);
       const prev = { current_hp: character.current_hp };
       await supabase.from("characters").update({ current_hp: newHp }).eq("id", character.id);
       await pushLog(campaignId, [
         { t: "char", v: character.name, color: character.color, id: character.id },
-        { t: "text", v: t("conditions.suffersLog", { icon: c.icon, label: c.label }) },
+        { t: "text", v: t("conditions.suffersLog", { icon: c.icon, label }) },
         { t: "loss", v: `-${c.damage_per_turn}` },
         { t: "text", v: `(${newHp})` },
       ], { kind: "character.update", id: character.id, prev });
@@ -79,7 +104,7 @@ export function ConditionsPanel({
       await (supabase as any).from("character_conditions").delete().eq("id", c.id);
       await pushLog(campaignId, [
         { t: "char", v: character.name, color: character.color, id: character.id },
-        { t: "text", v: t("conditions.noLonger", { icon: c.icon, label: c.label }) },
+        { t: "text", v: t("conditions.noLonger", { icon: c.icon, label }) },
       ]);
     } else {
       await (supabase as any).from("character_conditions").update({ turns_left: next }).eq("id", c.id);
@@ -109,7 +134,7 @@ export function ConditionsPanel({
           <div key={c.id} className="flex items-center gap-2 bg-secondary/40 rounded px-2 py-1.5">
             <span className="text-base">{c.icon}</span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-display truncate">{c.label}</p>
+              <p className="text-xs font-display truncate">{getRowLabel(c)}</p>
               {c.damage_per_turn > 0 && (
                 <p className="text-[9px] text-[var(--loss)]">{t("conditions.perTurn", { n: c.damage_per_turn })}</p>
               )}
@@ -157,22 +182,26 @@ export function ApplyConditionModal({
   const { t } = useT();
 
   const picked = catalog.find(c => c.id === pickId);
-  useEffect(() => { if (picked) setDamage(picked.damage_default); }, [pickId]);
+  useEffect(() => {
+    if (!pickId && catalog[0]) setPickId(catalog[0].id);
+  }, [catalog, pickId]);
+  useEffect(() => { if (picked) setDamage(picked.damage_default); }, [pickId, picked]);
 
   async function apply() {
     if (!picked) return toast.error(t("conditions.pickEffect"));
     if (turns < 1) return toast.error(t("conditions.minTurns"));
+    const label = getCatalogLabel(picked, t);
     await (supabase as any).from("character_conditions").insert({
       character_id: characterId,
       catalog_id: picked.id,
-      label: picked.label,
+      label,
       icon: picked.icon,
       turns_left: turns,
       damage_per_turn: picked.is_damage ? Math.max(0, damage) : 0,
     });
     const extra = picked.is_damage && damage > 0 ? `, -${damage}/t` : "";
     await pushLog(campaignId, [
-      { t: "text", v: t("conditions.appliedLog", { icon: picked.icon, label: picked.label, turns, extra }) },
+      { t: "text", v: t("conditions.appliedLog", { icon: picked.icon, label, turns, extra }) },
     ]);
     toastSaved(t("conditions.appliedToast"));
     onApplied?.();
@@ -186,7 +215,7 @@ export function ApplyConditionModal({
         <select value={pickId} onChange={e => setPickId(e.target.value)}
           className="w-full bg-input border border-border rounded px-2 py-2 text-sm">
           {catalog.map(c => (
-            <option key={c.id} value={c.id}>{c.icon} {c.label}{c.is_damage ? " 🩸" : ""}</option>
+            <option key={c.id} value={c.id}>{c.icon} {getCatalogLabel(c, t)}{c.is_damage ? " 🩸" : ""}</option>
           ))}
         </select>
         <label className="flex items-center justify-between text-sm">{t("conditions.turns")}
@@ -208,7 +237,6 @@ export function ApplyConditionModal({
   );
 }
 
-/** DM panel: create new effect & apply to multiple players */
 export function DMConditionsCreator({
   campaignId, players,
 }: {
@@ -237,13 +265,13 @@ export function DMConditionsCreator({
   useEffect(() => { loadCat(); /* eslint-disable-next-line */ }, [campaignId]);
 
   const picked = catalog.find(c => c.id === pickId);
-  useEffect(() => { if (picked) setDamage(picked.damage_default); }, [pickId]);
+  useEffect(() => { if (picked) setDamage(picked.damage_default); }, [pickId, picked]);
 
   async function createEffect() {
     if (!label.trim()) return toast.error(t("conditions.putName"));
     const { error } = await (supabase as any).from("condition_effects_catalog").insert({
       campaign_id: campaignId,
-      key: label.toLowerCase().replace(/\s+/g, "_"),
+      key: slugifyLabel(label),
       label: label.trim(),
       icon: icon || "✨",
       is_damage: isDamage,
@@ -258,10 +286,11 @@ export function DMConditionsCreator({
   async function applyToTargets() {
     if (!picked) return toast.error(t("conditions.pickEffect"));
     if (!targets.length) return toast.error(t("conditions.pickAtLeastOne"));
+    const localizedLabel = getCatalogLabel(picked, t);
     const rows = targets.map(charId => ({
       character_id: charId,
       catalog_id: picked.id,
-      label: picked.label,
+      label: localizedLabel,
       icon: picked.icon,
       turns_left: Math.max(1, turns),
       damage_per_turn: picked.is_damage ? Math.max(0, damage) : 0,
@@ -274,7 +303,7 @@ export function DMConditionsCreator({
         const extra = picked.is_damage && damage > 0 ? `, -${damage}/t` : "";
         await pushLog(campaignId, [
           { t: "char", v: ch.name, color: ch.color, id: ch.id },
-          { t: "text", v: t("conditions.receivesLog", { icon: picked.icon, label: picked.label, turns, extra }) },
+          { t: "text", v: t("conditions.receivesLog", { icon: picked.icon, label: localizedLabel, turns, extra }) },
         ]);
       }
     }
@@ -308,7 +337,7 @@ export function DMConditionsCreator({
           <select value={pickId} onChange={e => setPickId(e.target.value)}
             className="w-full bg-input border border-border rounded px-2 py-2 text-sm">
             {catalog.map(c => (
-              <option key={c.id} value={c.id}>{c.icon} {c.label}{c.is_damage ? " 🩸" : ""}</option>
+              <option key={c.id} value={c.id}>{c.icon} {getCatalogLabel(c, t)}{c.is_damage ? " 🩸" : ""}</option>
             ))}
           </select>
           <div className="grid grid-cols-2 gap-2">
@@ -367,11 +396,11 @@ export function DMConditionsCreator({
           {catalog.map(c => (
             <div key={c.id} className="flex items-center gap-2 bg-secondary/40 rounded px-2 py-1.5 text-xs">
               <span>{c.icon}</span>
-              <span className="flex-1 truncate">{c.label}{c.is_damage ? ` 🩸${c.damage_default}` : ""}</span>
+              <span className="flex-1 truncate">{getCatalogLabel(c, t)}{c.is_damage ? ` 🩸${c.damage_default}` : ""}</span>
               {c.campaign_id ? (
                 <button className="text-[10px] text-[var(--loss)] underline"
                   onClick={async () => {
-                    if (!confirm(t("conditions.deleteConfirm", { label: c.label }))) return;
+                    if (!confirm(t("conditions.deleteConfirm", { label: getCatalogLabel(c, t) }))) return;
                     const { error } = await (supabase as any).from("condition_effects_catalog").delete().eq("id", c.id);
                     if (error) toast.error(error.message);
                     else { toastSaved(t("conditions.deletedToast")); loadCat(); }

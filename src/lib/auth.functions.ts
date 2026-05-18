@@ -21,7 +21,7 @@ function tomorrowMidnight(): Date {
 }
 
 export type LoginResult =
-  | { ok: true; user: { id: string; username: string; isMaster: boolean } }
+  | { ok: true; user: { id: string; username: string; isMaster: boolean }; isNewAccount: boolean }
   | { ok: false; reason: "blocked" | "cooldown" | "bad_pin" | "invalid"; message: string; retryAt?: string };
 
 export const attemptLogin = createServerFn({ method: "POST" })
@@ -73,6 +73,7 @@ export const attemptLogin = createServerFn({ method: "POST" })
             username: existing.username,
             isMaster: existing.username === "MasterAcc1000",
           },
+          isNewAccount: false,
         };
       }
       // wrong pin → record failure
@@ -108,7 +109,7 @@ export const attemptLogin = createServerFn({ method: "POST" })
       return { ok: false, reason: "invalid", message: error?.message || "No se pudo crear la cuenta" };
     }
     await supabaseAdmin.from("login_attempts" as any).delete().eq("ip", ip);
-    return { ok: true, user: { id: created.id, username: created.username, isMaster: false } };
+    return { ok: true, user: { id: created.id, username: created.username, isMaster: false }, isNewAccount: true };
   });
 
 export const masterUnblock = createServerFn({ method: "POST" })
