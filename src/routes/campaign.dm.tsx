@@ -498,7 +498,7 @@ function ItemActions({ item, players, dm, campaignId, allItems, allCharacters, o
     await clampHpForOwner(prevOwner, oldMax);
     await pushLog(campaignId, [
       {t:"char",v:dm.name,color:dm.color,id:dm.id},
-      {t:"text",v:"reclamó"},
+      {t:"text",v:tr("dm.reclaimedLog")},
       {t:"item",v:item.name,rarity:item.rarity as Rarity,id:item.id},
     ], { kind: "item.update", id: item.id, prev });
     onClose();
