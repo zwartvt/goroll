@@ -130,39 +130,107 @@ function RarityBonusChip({ rarity }: { rarity: Rarity }) {
 
 /* ───────────────────────── Player / Spectator details ─────────────────────── */
 
+function Chip({
+  children, tone = "default",
+}: { children: React.ReactNode; tone?: "default" | "gold" | "rarity" }) {
+  const styles =
+    tone === "gold"
+      ? {
+          borderColor: "color-mix(in oklab, var(--gold) 55%, transparent)",
+          background: "color-mix(in oklab, var(--gold) 10%, transparent)",
+          color: "var(--gold)",
+        }
+      : tone === "rarity"
+      ? {
+          borderColor: "color-mix(in oklab, var(--gold) 35%, transparent)",
+          background: "color-mix(in oklab, var(--gold) 6%, transparent)",
+          color: "color-mix(in oklab, var(--gold) 85%, white)",
+        }
+      : {
+          borderColor: "color-mix(in oklab, var(--gold) 28%, transparent)",
+          background: "color-mix(in oklab, white 5%, transparent)",
+          color: "var(--foreground)",
+        };
+  return (
+    <span
+      className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
+      style={styles}
+    >
+      {children}
+    </span>
+  );
+}
+
+function StatRow({
+  icon, label, children, isLast,
+}: { icon: string; label: string; children: React.ReactNode; isLast?: boolean }) {
+  return (
+    <div
+      className="flex items-center gap-2 py-2 min-h-[44px]"
+      style={
+        isLast
+          ? undefined
+          : { borderBottom: "1px solid color-mix(in oklab, var(--gold) 14%, transparent)" }
+      }
+    >
+      <span className="text-sm w-5 text-center shrink-0" aria-hidden>{icon}</span>
+      <span className="text-[10px] uppercase tracking-widest text-muted-foreground flex-1 min-w-0 truncate">
+        {label}
+      </span>
+      <span className="flex flex-wrap items-center justify-end gap-1.5 max-w-[60%]">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function splitDiceChips(dados: string): string[] {
+  // Split on `+` while keeping the `+` on subsequent fragments: "1d20 + mod SAB" → ["1d20", "+ mod SAB"]
+  const parts = dados.split(/\s*\+\s*/).map(s => s.trim()).filter(Boolean);
+  return parts.map((p, i) => (i === 0 ? p : `+ ${p}`));
+}
+
 function BoosterDetails({ b }: { b: Booster }) {
   const color = RARITY_COLOR[b.rarity as Rarity];
+  const { t } = useT();
+  const diceChips = b.dados ? splitDiceChips(b.dados) : [];
   return (
     <>
-      <SectionFrame icon="✦" title="Resumen del potenciador" color={color}>
-        <div className="grid grid-cols-2 gap-2">
-          <FieldTile icon="🎯" label="Modo de lanzamiento" value={b.modo_lanzamiento} />
-          <FieldTile icon="📏" label="Distancia" value={b.distancia} />
-          <FieldTile icon="👤" label="Objetivos" value={b.objetivos} />
-          <div className="rounded-md p-2.5 flex items-start gap-2"
-            style={{ border: "1px solid color-mix(in oklab, var(--gold) 18%, transparent)" }}>
-            <span className="text-base mt-0.5" style={{ color: "var(--gold)" }}>🎲</span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[9px] uppercase tracking-widest text-muted-foreground">Dados a tirar</p>
-              <p className="text-sm break-words">
-                {b.dados ? <StatText>{b.dados}</StatText> : <span className="text-muted-foreground italic">—</span>}
-              </p>
-            </div>
-            <RarityBonusChip rarity={b.rarity as Rarity} />
-          </div>
-        </div>
-        <div className="rounded-md p-2.5 flex items-center gap-2"
-          style={{ border: "1px solid color-mix(in oklab, var(--gold) 18%, transparent)" }}>
-          <span className="text-base" style={{ color: "var(--gold)" }}>🧪</span>
-          <div className="flex-1">
-            <p className="text-[9px] uppercase tracking-widest text-muted-foreground">Usos disponibles</p>
-            <p className="text-sm font-display">{b.uses} / {b.max_uses}</p>
-          </div>
+      <SectionFrame icon="✦" title={t("boosters.summary")} color={color}>
+        <div className="px-1">
+          <StatRow icon="🎯" label={t("boosters.castMode")}>
+            {b.modo_lanzamiento
+              ? <Chip tone="gold">{b.modo_lanzamiento}</Chip>
+              : <span className="text-muted-foreground italic text-xs">—</span>}
+          </StatRow>
+          <StatRow icon="📏" label={t("boosters.distance")}>
+            {b.distancia
+              ? b.distancia.split(/\s+(?=\()|(?<=\))\s+/).filter(Boolean).map((seg, i) => (
+                  <Chip key={i} tone="gold">{seg}</Chip>
+                ))
+              : <span className="text-muted-foreground italic text-xs">—</span>}
+          </StatRow>
+          <StatRow icon="👤" label={t("boosters.targets")}>
+            {b.objetivos
+              ? <Chip tone="gold">{b.objetivos}</Chip>
+              : <span className="text-muted-foreground italic text-xs">—</span>}
+          </StatRow>
+          <StatRow icon="🎲" label={t("boosters.diceToRoll")}>
+            {diceChips.length > 0
+              ? diceChips.map((c, i) => (
+                  <Chip key={i} tone="gold"><StatText>{c}</StatText></Chip>
+                ))
+              : <span className="text-muted-foreground italic text-xs">—</span>}
+            <Chip tone="rarity">+{RARITY_DICE_BONUS[b.rarity as Rarity]} {t("boosters.rarityBonus")}</Chip>
+          </StatRow>
+          <StatRow icon="🧪" label={t("boosters.usesAvailable")} isLast>
+            <Chip tone="gold">{b.uses} / {b.max_uses}</Chip>
+          </StatRow>
         </div>
       </SectionFrame>
 
       {b.efecto && (
-        <SectionFrame icon="✒️" title="Efecto o Condición" color={color}>
+        <SectionFrame icon="✒️" title={t("boosters.effect")} color={color}>
           <p className="text-sm italic text-center px-2 py-1 leading-relaxed"><StatText>{b.efecto}</StatText></p>
         </SectionFrame>
       )}
