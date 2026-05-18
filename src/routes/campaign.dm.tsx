@@ -507,7 +507,7 @@ function ItemActions({ item, players, dm, campaignId, allItems, allCharacters, o
     await supabase.from("items").delete().eq("id", item.id);
     await pushLog(campaignId, [
       {t:"char",v:dm.name,color:dm.color,id:dm.id},
-      {t:"text",v:"destruyó"},
+      {t:"text",v:tr("dm.destroyedLog")},
       {t:"item",v:item.name,rarity:item.rarity as Rarity},
     ], { kind: "item.recreate", item: item as any });
     onClose();
