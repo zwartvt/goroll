@@ -352,6 +352,10 @@ function Home() {
                   <input type="checkbox" checked={singleDmOnly} onChange={e => setSingleDmOnly(e.target.checked)} />
                   Solo un Dungeon Master en la campaña
                 </label>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                  <input type="checkbox" checked={lockNames} onChange={e => setLockNames(e.target.checked)} />
+                  Sin posibilidad de editar nombre de personaje
+                </label>
               </div>
             </>
           )}
