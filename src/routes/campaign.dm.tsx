@@ -84,7 +84,10 @@ function DM() {
           <h1 className="font-display text-xl rune-glow text-[var(--gold)]">👑 {character.name}</h1>
           <p className="text-xs text-muted-foreground">{t("dm.dungeonMaster")}</p>
         </div>
-        <Link to="/campaign/achievements" className="text-muted-foreground"><Trophy size={20}/></Link>
+        <div className="flex items-center gap-1.5">
+          <MicToggle enabled={voice.enabled} onToggle={voice.toggle} />
+          <Link to="/campaign/achievements" className="text-muted-foreground"><Trophy size={20}/></Link>
+        </div>
       </header>
       <div className="gem-divider mb-4"/>
 
