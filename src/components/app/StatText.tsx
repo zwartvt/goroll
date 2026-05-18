@@ -14,9 +14,14 @@ const STAT_COLORS: Record<string, string> = {
   INT: "var(--stat-int)",
   SAB: "var(--stat-sab)",
   CAR: "var(--stat-car)",
+  // English equivalents (same colors as their Spanish counterparts)
+  STR: "var(--stat-fue)",
+  DEX: "var(--stat-des)",
+  WIS: "var(--stat-sab)",
+  CHA: "var(--stat-car)",
 };
 
-const STAT_RE = /\b(FUE|DES|CON|INT|SAB|CAR)\b/g;
+const STAT_RE = /\b(FUE|DES|CON|INT|SAB|CAR|STR|DEX|WIS|CHA)\b/g;
 
 export function StatText({ children, className }: { children?: string | null; className?: string }) {
   const text = children ?? "";
