@@ -333,18 +333,18 @@ function Home() {
           >
             {/* Título */}
             <div
-              className="login-cta-text is-pulsing pr-0 pl-[31px] pb-[4px]"
+              className="absolute text-center font-display text-[var(--gold)] tracking-[0.08em] whitespace-nowrap flex items-center justify-center gap-2"
               style={{
-                top: "11%",
-                left: "8%",
-                width: "84%",
-                fontSize: "clamp(20px, 5.4vw, 30px)",
+                top: "12%",
+                left: "0",
+                right: "0",
+                fontSize: "clamp(14px, 3.4vw, 20px)",
                 textShadow: "0 0 10px color-mix(in oklab, var(--gold) 45%, transparent), 0 2px 4px rgba(0,0,0,0.7)",
               }}
             >
-              <span className="text-[color-mix(in_oklab,var(--gold)_85%,#ff5a5a)] mr-2">✦</span>
-              {t("home.loginTitle")}
-              <span className="text-[color-mix(in_oklab,var(--gold)_85%,#ff5a5a)] ml-2">✦</span>
+              <span className="text-[color-mix(in_oklab,var(--gold)_85%,#ff5a5a)]">✦</span>
+              <span>{t("home.loginTitle")}</span>
+              <span className="text-[color-mix(in_oklab,var(--gold)_85%,#ff5a5a)]">✦</span>
             </div>
 
             {/* Subtítulo */}
