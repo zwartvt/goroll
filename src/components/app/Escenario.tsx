@@ -76,6 +76,7 @@ export function Escenario({ characters, onlineIds, logs, selfId, onOpenChar, onO
                 <LogSegments segments={l.segments as any}
                   nameOverrides={nameOverrides}
                   onItem={(id) => onOpenItem?.(id)}
+                  onBooster={(id) => onOpenBooster?.(id)}
                   onChar={(id) => onOpenChar(id)} />
                 <p className="text-[9px] text-muted-foreground mt-0.5">{new Date(l.created_at).toLocaleTimeString()}</p>
               </div>
