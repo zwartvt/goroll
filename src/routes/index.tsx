@@ -379,6 +379,20 @@ function Home() {
               autoFocus
             />
 
+            {/* Etiqueta CODEX PIN */}
+            <div
+              className="absolute text-center font-display text-[var(--gold)] tracking-[0.18em]"
+              style={{
+                top: "50%",
+                left: "20%",
+                width: "60%",
+                fontSize: "clamp(11px, 2.6vw, 14px)",
+                textShadow: "0 0 6px color-mix(in oklab, var(--gold) 40%, transparent)",
+              }}
+            >
+              ✦ {t("home.codexPin")} ✦
+            </div>
+
             {/* PIN — 4 cuadros */}
             <div
               className="absolute flex justify-between items-center"
