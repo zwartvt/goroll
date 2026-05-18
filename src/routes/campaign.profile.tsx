@@ -86,15 +86,14 @@ function Profile() {
     setOpenChar(id);
   }
 
-  const stat = (k: "fue"|"des"|"con"|"int_stat"|"wis"|"car", label: string) => {
-    const v = (character as any)[k] as number;
-    return (
-      <div className="stat-pill !text-[11px]">
-        <span>{label}: {v}</span>
-        <span className="text-[var(--gold)] font-bold">{fmtMod(modifier(v))}</span>
-      </div>
-    );
-  };
+  const ATTR_META: { k: "fue"|"des"|"con"|"int_stat"|"wis"|"car"; label: string; color: string }[] = [
+    { k: "fue",      label: t("attr.fue"), color: "oklch(0.65 0.22 25)" },   // red
+    { k: "des",      label: t("attr.des"), color: "oklch(0.70 0.17 145)" },  // green
+    { k: "con",      label: t("attr.con"), color: "oklch(0.73 0.16 55)" },   // orange
+    { k: "int_stat", label: t("attr.int"), color: "oklch(0.65 0.18 250)" },  // blue
+    { k: "wis",      label: t("attr.wis"), color: "oklch(0.65 0.20 295)" },  // purple
+    { k: "car",      label: t("attr.car"), color: "oklch(0.72 0.18 350)" },  // pink
+  ];
 
   // Players for Escenario view come from the shared component.
 
