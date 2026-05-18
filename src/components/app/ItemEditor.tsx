@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SLOTS, RARITY_COLOR, RARITY_LABEL, RARITY_BONUS, ITEM_CATEGORIES, isWeapon, type Item, type Rarity, type Slot, type ItemCategory } from "@/lib/game";
+import { SLOTS, RARITY_COLOR, RARITY_BONUS, ITEM_CATEGORIES, isWeapon, type Item, type Rarity, type Slot, type ItemCategory } from "@/lib/game";
 import { supabase } from "@/integrations/supabase/client";
 import { pushLog } from "@/lib/log";
 import { toastSaved } from "@/lib/saved";
