@@ -402,6 +402,7 @@ function Home() {
               {[0, 1, 2, 3].map(i => (
                 <input
                   key={i}
+                  type="text"
                   ref={el => { pinRefs.current[i] = el; }}
                   className="bg-transparent border-0 outline-none ring-0 focus:ring-0 focus:outline-none text-center font-display text-[var(--gold)] caret-[var(--gold)]"
                   style={{ width: "21%", height: "100%", fontSize: "clamp(20px, 5.2vw, 30px)" }}
