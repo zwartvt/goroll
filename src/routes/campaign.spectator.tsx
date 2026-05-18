@@ -3,18 +3,19 @@ import { useState } from "react";
 import { useGameData } from "@/lib/useGame";
 import { PageFrame } from "@/components/app/Frame";
 import { LogOut } from "lucide-react";
-import { setSession, totals, type LogRow } from "@/lib/game";
+import { setSession, type LogRow } from "@/lib/game";
 import { LogSegments } from "@/components/app/LogSegments";
 import { LogList } from "@/components/app/LogList";
 import { CharacterSheetModal } from "@/components/app/CharacterSheetModal";
 import { ItemModal } from "@/components/app/ItemModal";
+import { Escenario } from "@/components/app/Escenario";
 
 export const Route = createFileRoute("/campaign/spectator")({ component: Spectator });
 
 function Spectator() {
-  const { campaign, characters, items, logs, achievements, loading } = useGameData();
+  const { campaign, characters, logs, achievements, onlineIds, loading } = useGameData();
   const nav = useNavigate();
-  const [tab, setTab] = useState<"players" | "log" | "achievements">("players");
+  const [tab, setTab] = useState<"escenario" | "log" | "achievements">("escenario");
   const [openChar, setOpenChar] = useState<string | null>(null);
   const [openItemId, setOpenItemId] = useState<string | null>(null);
 
@@ -38,7 +39,7 @@ function Spectator() {
 
       <div className="grid grid-cols-3 gap-1 mb-4">
         {([
-          ["players","🛡️ Héroes"],["log","📜 Log"],["achievements","🏆 Logros"],
+          ["escenario","⛺ Escena"],["log","📜 Log"],["achievements","🏆 Logros"],
         ] as const).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`text-xs py-2 rounded-md font-display ${tab===k?"bg-[var(--gold)] text-black":"bg-card text-foreground border border-border"}`}>
@@ -47,33 +48,15 @@ function Spectator() {
         ))}
       </div>
 
-      {tab === "players" && (
-        <div className="grid grid-cols-2 gap-3">
-          {players.map(p => {
-            const eq = items.filter(i => i.owner_character_id === p.id && i.equipped);
-            const stats = totals(p, eq);
-            const hpPct = Math.max(0, Math.min(100, (p.current_hp / stats.maxHp) * 100));
-            return (
-              <button key={p.id} onClick={() => setOpenChar(p.id)} className="ornate-card p-2 text-left">
-                <div className="aspect-square w-full rounded-md overflow-hidden bg-secondary/40 mb-2 relative">
-                  {p.image_url ? (
-                    <img src={p.image_url} alt={p.name} className="w-full h-full object-cover"
-                      style={{ transform: `translate(${(Number(p.image_offset_x)-50)}%, ${(Number(p.image_offset_y)-50)}%) scale(${p.image_scale})`, transformOrigin: "center center" }} />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-3xl">⚔️</div>
-                  )}
-                </div>
-                <p className="font-display text-sm truncate" style={{ color: p.color }}>{p.name}</p>
-                <p className="text-[10px] text-muted-foreground truncate">{p.race||"—"} / {p.class||"—"}</p>
-                <div className="mt-1 h-1.5 w-full rounded bg-secondary/60 overflow-hidden">
-                  <div className="h-full bg-[var(--blood)]" style={{ width: `${hpPct}%` }} />
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">❤️ {p.current_hp}/{stats.maxHp}</p>
-              </button>
-            );
-          })}
-          {!players.length && <p className="col-span-2 text-center text-xs text-muted-foreground py-6">No hay héroes en esta campaña aún.</p>}
-        </div>
+      {tab === "escenario" && (
+        <Escenario
+          characters={characters}
+          onlineIds={onlineIds}
+          logs={logs}
+          selfId={null}
+          onOpenChar={(id) => setOpenChar(id)}
+          onOpenItem={openItemFromId}
+        />
       )}
 
       {tab === "log" && (

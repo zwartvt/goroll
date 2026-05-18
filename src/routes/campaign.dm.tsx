@@ -15,15 +15,18 @@ import { DMConditionsCreator } from "@/components/app/ConditionsPanel";
 import { BoosterEditor } from "@/components/app/BoosterEditor";
 import { type Booster } from "@/components/app/BoosterCard";
 import { DMRequestGate } from "@/components/app/DMRequestGate";
+import { Escenario } from "@/components/app/Escenario";
+import { DeleteCampaignButton } from "@/components/app/DeleteCampaignButton";
+import { getStoredUser } from "@/lib/game";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/campaign/dm")({ component: DM });
 
 function DM() {
-  const { character, characters, items, logs, campaign, loading } = useGameData();
+  const { character, characters, items, logs, campaign, onlineIds, loading } = useGameData();
   const nav = useNavigate();
-  const [tab, setTab] = useState<"log" | "create" | "vault" | "boosters" | "players">("log");
+  const [tab, setTab] = useState<"log" | "create" | "vault" | "boosters" | "escenario">("log");
   const [selItem, setSelItem] = useState<Item | null>(null);
   const [editItem, setEditItem] = useState<Item | null>(null);
   const [openChar, setOpenChar] = useState<string | null>(null);
@@ -78,7 +81,7 @@ function DM() {
 
       <div className="grid grid-cols-5 gap-1 mb-4">
         {([
-          ["log","📜 Log"],["create","✨ Crear"],["vault","🏛️ Vault"],["boosters","🃏 Pot."],["players","🛡️ Players"],
+          ["log","📜 Log"],["create","✨ Crear"],["vault","🏛️ Vault"],["boosters","🃏 Pot."],["escenario","⛺ Escena"],
         ] as const).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`text-[10px] py-2 rounded-md font-display ${tab===k?"bg-[var(--gold)] text-black":"bg-card text-foreground border border-border"}`}>
@@ -266,24 +269,27 @@ function DM() {
         </div>
       )}
 
-      {tab === "players" && (
-        <div className="space-y-2">
-          {players.map(p => {
-            const eq = items.filter(i => i.owner_character_id === p.id && i.equipped);
-            return (
-              <button key={p.id} onClick={() => setOpenChar(p.id)} className="w-full ornate-card p-3 text-left">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-display" style={{ color: p.color }}>{p.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{p.race||"—"} / {p.class||"—"} · ❤️ {p.current_hp}/{p.base_hp + eq.filter(i=>!isWeapon(i.slot as any)).reduce((a,i)=>a+(i.hp_bonus||RARITY_BONUS[i.rarity as Rarity].hp),0)} · 🪙 {p.coins}</p>
-                  </div>
-                  <span className="text-xs">{eq.length} eq.</span>
-                </div>
-              </button>
-            );
-          })}
-          {!players.length && <p className="text-center text-xs text-muted-foreground py-6">Sin jugadores aún. Pídeles que entren a "{campaign.name}".</p>}
-        </div>
+      {tab === "escenario" && (
+        <>
+          {!players.length && (
+            <p className="text-center text-xs text-muted-foreground py-3">
+              Sin jugadores aún. Pídeles que entren a "{campaign.name}".
+            </p>
+          )}
+          <Escenario
+            characters={characters}
+            onlineIds={onlineIds}
+            logs={logs}
+            selfId={null}
+            onOpenChar={(id) => setOpenChar(id)}
+            onOpenItem={openItemFromId}
+          />
+          <DeleteCampaignButton
+            campaignId={campaign.id}
+            campaignName={campaign.name}
+            isOwner={!!(campaign as any).owner_user_id && (campaign as any).owner_user_id === getStoredUser()?.id}
+          />
+        </>
       )}
 
       {selItem && (
