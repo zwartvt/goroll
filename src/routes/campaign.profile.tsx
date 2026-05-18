@@ -20,11 +20,15 @@ export const Route = createFileRoute("/campaign/profile")({
 });
 
 function Profile() {
-  const { campaign, character, characters, items, logs, loading } = useGameData();
+  const { campaign, character, characters, items, logs, onlineIds, loading } = useGameData();
   const nav = useNavigate();
   const [imgModal, setImgModal] = useState(false);
   const [openChar, setOpenChar] = useState<string | null>(null);
   const [openItem, setOpenItem] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"personaje" | "escenario">("personaje");
+  const [openOffline, setOpenOffline] = useState(false);
+  // When opened from Escenario tab (or from the log), force read-only sheet.
+  const [openCharReadOnly, setOpenCharReadOnly] = useState(false);
 
   if (loading || !character || !campaign) return <PageFrame><p className="text-center text-muted-foreground">Cargando...</p></PageFrame>;
 
@@ -61,6 +65,15 @@ function Profile() {
 
   function logout() { setSession(null); nav({ to: "/" }); }
 
+  /** Open a character sheet from any source (log, escenario). Always read-only here. */
+  function openCharFromLog(id: string | undefined, readOnly = false) {
+    if (!id) { toast.error("No se pudo abrir la ficha: el registro del log no tiene un personaje válido."); return; }
+    const exists = characters.some(c => c.id === id) || character?.id === id;
+    if (!exists) { toast.error("No se pudo abrir la ficha: el personaje no está en esta campaña."); return; }
+    setOpenCharReadOnly(readOnly);
+    setOpenChar(id);
+  }
+
   const stat = (k: "fue"|"des"|"con"|"int_stat"|"wis"|"car", label: string) => {
     const v = (character as any)[k] as number;
     return (
@@ -70,6 +83,10 @@ function Profile() {
       </div>
     );
   };
+
+  const players = characters.filter(c => c.role !== "dm");
+  const online = players.filter(p => onlineIds.has(p.id) || p.id === character.id);
+  const offline = players.filter(p => !onlineIds.has(p.id) && p.id !== character.id);
 
   return (
     <PageFrame>
@@ -87,133 +104,273 @@ function Profile() {
       </header>
       <div className="gem-divider mb-4" />
 
-      {/* Top: image (left) + key stats (right) */}
-      <div className="grid grid-cols-5 gap-2 mb-3">
-        <button
-          onClick={() => setImgModal(true)}
-          className="col-span-2 aspect-[3/4] rounded-lg overflow-hidden bg-[var(--secondary)] relative ornate-card !p-0"
-          aria-label="Editar imagen"
-        >
-          {character.image_url ? (
-            <img src={character.image_url} alt={character.name}
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{
-                transform: `translate(${((character.image_offset_x ?? 50) - 50)}%, ${((character.image_offset_y ?? 50) - 50)}%) scale(${character.image_scale || 1})`,
-                transformOrigin: "center center",
-              }} />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
-              <span className="text-3xl mb-1">🧙</span>
-              <span className="text-[10px] text-center px-1">Toca para subir</span>
-            </div>
-          )}
-        </button>
-
-        <div className="col-span-3 grid grid-cols-2 gap-2">
-          <div className="ornate-card p-2 text-center">
-            <p className="text-[9px] uppercase text-muted-foreground">Vida</p>
-            <p className="font-display text-sm">{character.current_hp}/{stats.maxHp}</p>
-          </div>
-          <div className="ornate-card p-2 text-center">
-            <p className="text-[9px] uppercase text-muted-foreground">Defensa</p>
-            <p className="font-display text-sm text-[var(--gold)]">{stats.defense}</p>
-          </div>
-          <div className="ornate-card p-2 text-center">
-            <p className="text-[9px] uppercase text-muted-foreground">Velocidad</p>
-            <p className="font-display text-sm">{character.velocity}<span className="text-[9px]">ft</span></p>
-          </div>
-          <div className="ornate-card p-2 text-center">
-            <p className="text-[9px] uppercase text-muted-foreground">Daño</p>
-            <p className="font-display text-sm text-[var(--loss)]">{stats.damage > 0 ? `+${stats.damage}` : stats.damage}</p>
-          </div>
-          <div className="ornate-card p-2 text-center col-span-2">
-            <p className="text-[9px] uppercase text-muted-foreground">🪙 Monedas</p>
-            <p className="font-display text-base text-[var(--gold)]">{character.coins}</p>
-            <div className="mt-1">
-              <CoinsAdjuster onApply={changeCoins} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* HP bar */}
-      <div className="ornate-card p-2 mb-3">
-        <div className="flex items-center gap-2">
-          <span>❤️</span>
-          <div className="flex-1 h-3 rounded-full bg-secondary overflow-hidden border border-[var(--gold)]/40">
-            <div className="h-full transition-all" style={{
-              width: `${hpPct}%`,
-              background: hpPct > 50 ? "var(--gain)" : hpPct > 25 ? "var(--gold)" : "var(--loss)",
-            }} />
-          </div>
-          <span className="font-display text-xs">{character.current_hp}/{stats.maxHp}</span>
-        </div>
-        <div className="flex gap-1 mt-2 justify-center">
-          <button className="btn-fantasy !py-1 !px-2 !text-[10px]" onClick={() => changeHp(-5)}><Minus size={10} className="inline"/>5</button>
-          <button className="btn-fantasy !py-1 !px-2 !text-[10px]" onClick={() => changeHp(-1)}><Minus size={10} className="inline"/>1</button>
-          <button className="btn-fantasy !py-1 !px-2 !text-[10px]" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }} onClick={() => changeHp(1)}><Plus size={10} className="inline"/>1</button>
-          <button className="btn-fantasy !py-1 !px-2 !text-[10px]" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }} onClick={() => changeHp(5)}><Plus size={10} className="inline"/>5</button>
-        </div>
-      </div>
-
-      {/* Atributos */}
-      <h2 className="font-display text-xs uppercase tracking-widest text-center mb-1 text-[var(--gold)]">Atributos</h2>
-      <div className="grid grid-cols-3 gap-1 mb-3">
-        {stat("fue", "FUE")}
-        {stat("des", "DES")}
-        {stat("con", "CON")}
-        {stat("int_stat", "INT")}
-        {stat("wis", "SAB")}
-        {stat("car", "CAR")}
-      </div>
-      <div className="stat-pill mb-3 !text-[11px]"><span>Iniciativa</span><span className="text-[var(--gold)] font-bold">{fmtMod(character.initiative)}</span></div>
-
-      <ConditionsPanel character={character} campaignId={campaign.id} canEdit={true} />
-
-      {/* Quick links */}
-      <div className="grid grid-cols-3 gap-2 mb-2">
-        <Link to="/campaign/equipment" className="btn-fantasy text-center">⚔️ Equipo</Link>
-        <Link to="/campaign/inventory" className="btn-fantasy text-center" style={{ background: "linear-gradient(135deg, oklch(0.5 0.15 195), oklch(0.3 0.1 195))" }}>🎒 Mochila</Link>
-        <Link to="/campaign/achievements" className="btn-fantasy text-center" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }}>🏆 Logros</Link>
-      </div>
+      {/* Tabs: Personaje / Escenario */}
       <div className="grid grid-cols-2 gap-2 mb-4">
-        <Link to="/campaign/boosters" className="btn-fantasy text-center"
-          style={{ background: "linear-gradient(135deg, var(--rarity-purple), oklch(0.35 0.18 300))", color: "white" }}>
-          🃏 Potenciadores
-        </Link>
-        <Link to="/campaign/notes" className="btn-fantasy text-center"
-          style={{ background: "linear-gradient(135deg, oklch(0.45 0.12 220), oklch(0.30 0.10 220))", color: "white" }}>
-          📝 Notas
-        </Link>
+        <button
+          onClick={() => setActiveTab("personaje")}
+          className={`btn-fantasy font-display tracking-wider ${activeTab === "personaje" ? "" : "opacity-50"}`}
+          style={activeTab === "personaje"
+            ? { background: "linear-gradient(135deg, oklch(0.45 0.16 145), oklch(0.30 0.12 145))", color: "white" }
+            : undefined}
+        >
+          🧙 Personaje
+        </button>
+        <button
+          onClick={() => setActiveTab("escenario")}
+          className={`btn-fantasy font-display tracking-wider ${activeTab === "escenario" ? "" : "opacity-50"}`}
+          style={activeTab === "escenario"
+            ? { background: "linear-gradient(135deg, oklch(0.50 0.15 195), oklch(0.30 0.12 195))", color: "white" }
+            : undefined}
+        >
+          ⛺ Escenario
+        </button>
       </div>
 
-      {/* Log */}
-      <h2 className="font-display text-xs uppercase tracking-widest text-center mb-2 text-[var(--gold)]">📜 Log de la partida</h2>
-      <LogList rows={logs} initial={20} maxH="max-h-[40vh]" empty="Sin actividad aún."
-        renderRow={(l: any) => (
-          <div key={l.id} className={`text-xs bg-secondary/40 rounded px-2 py-1.5 leading-relaxed ${l.undone ? "opacity-50 line-through" : ""}`}>
-            <LogSegments segments={l.segments as any}
-              onItem={(id) => setOpenItem(id)}
-              onChar={(id) => {
-                if (!characters.find(c => c.id === id)) toast.error("Jugador no encontrado");
-                else setOpenChar(id);
-              }} />
-            <p className="text-[9px] text-muted-foreground mt-0.5">{new Date(l.created_at).toLocaleTimeString()}</p>
+      {activeTab === "personaje" && (
+        <>
+          {/* Top: image (left) + key stats (right) */}
+          <div className="grid grid-cols-5 gap-2 mb-3">
+            <button
+              onClick={() => setImgModal(true)}
+              className="col-span-2 aspect-[3/4] rounded-lg overflow-hidden bg-[var(--secondary)] relative ornate-card !p-0"
+              aria-label="Editar imagen"
+            >
+              {character.image_url ? (
+                <img src={character.image_url} alt={character.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{
+                    transform: `translate(${((character.image_offset_x ?? 50) - 50)}%, ${((character.image_offset_y ?? 50) - 50)}%) scale(${character.image_scale || 1})`,
+                    transformOrigin: "center center",
+                  }} />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
+                  <span className="text-3xl mb-1">🧙</span>
+                  <span className="text-[10px] text-center px-1">Toca para subir</span>
+                </div>
+              )}
+            </button>
+
+            <div className="col-span-3 grid grid-cols-2 gap-2">
+              <div className="ornate-card p-2 text-center">
+                <p className="text-[9px] uppercase text-muted-foreground">Vida</p>
+                <p className="font-display text-sm">{character.current_hp}/{stats.maxHp}</p>
+              </div>
+              <div className="ornate-card p-2 text-center">
+                <p className="text-[9px] uppercase text-muted-foreground">Defensa</p>
+                <p className="font-display text-sm text-[var(--gold)]">{stats.defense}</p>
+              </div>
+              <div className="ornate-card p-2 text-center">
+                <p className="text-[9px] uppercase text-muted-foreground">Velocidad</p>
+                <p className="font-display text-sm">{character.velocity}<span className="text-[9px]">ft</span></p>
+              </div>
+              <div className="ornate-card p-2 text-center">
+                <p className="text-[9px] uppercase text-muted-foreground">Daño</p>
+                <p className="font-display text-sm text-[var(--loss)]">{stats.damage > 0 ? `+${stats.damage}` : stats.damage}</p>
+              </div>
+              <div className="ornate-card p-2 text-center col-span-2">
+                <p className="text-[9px] uppercase text-muted-foreground">🪙 Monedas</p>
+                <p className="font-display text-base text-[var(--gold)]">{character.coins}</p>
+                <div className="mt-1">
+                  <CoinsAdjuster onApply={changeCoins} />
+                </div>
+              </div>
+            </div>
           </div>
-        )} />
+
+          {/* HP bar */}
+          <div className="ornate-card p-2 mb-3">
+            <div className="flex items-center gap-2">
+              <span>❤️</span>
+              <div className="flex-1 h-3 rounded-full bg-secondary overflow-hidden border border-[var(--gold)]/40">
+                <div className="h-full transition-all" style={{
+                  width: `${hpPct}%`,
+                  background: hpPct > 50 ? "var(--gain)" : hpPct > 25 ? "var(--gold)" : "var(--loss)",
+                }} />
+              </div>
+              <span className="font-display text-xs">{character.current_hp}/{stats.maxHp}</span>
+            </div>
+            <div className="flex gap-1 mt-2 justify-center">
+              <button className="btn-fantasy !py-1 !px-2 !text-[10px]" onClick={() => changeHp(-5)}><Minus size={10} className="inline"/>5</button>
+              <button className="btn-fantasy !py-1 !px-2 !text-[10px]" onClick={() => changeHp(-1)}><Minus size={10} className="inline"/>1</button>
+              <button className="btn-fantasy !py-1 !px-2 !text-[10px]" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }} onClick={() => changeHp(1)}><Plus size={10} className="inline"/>1</button>
+              <button className="btn-fantasy !py-1 !px-2 !text-[10px]" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }} onClick={() => changeHp(5)}><Plus size={10} className="inline"/>5</button>
+            </div>
+          </div>
+
+          {/* Atributos */}
+          <h2 className="font-display text-xs uppercase tracking-widest text-center mb-1 text-[var(--gold)]">Atributos</h2>
+          <div className="grid grid-cols-3 gap-1 mb-3">
+            {stat("fue", "FUE")}
+            {stat("des", "DES")}
+            {stat("con", "CON")}
+            {stat("int_stat", "INT")}
+            {stat("wis", "SAB")}
+            {stat("car", "CAR")}
+          </div>
+          <div className="stat-pill mb-3 !text-[11px]"><span>Iniciativa</span><span className="text-[var(--gold)] font-bold">{fmtMod(character.initiative)}</span></div>
+
+          <ConditionsPanel character={character} campaignId={campaign.id} canEdit={true} />
+
+          {/* Quick links */}
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <Link to="/campaign/equipment" className="btn-fantasy text-center">⚔️ Equipo</Link>
+            <Link to="/campaign/inventory" className="btn-fantasy text-center" style={{ background: "linear-gradient(135deg, oklch(0.5 0.15 195), oklch(0.3 0.1 195))" }}>🎒 Mochila</Link>
+            <Link to="/campaign/achievements" className="btn-fantasy text-center" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }}>🏆 Logros</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <Link to="/campaign/boosters" className="btn-fantasy text-center"
+              style={{ background: "linear-gradient(135deg, var(--rarity-purple), oklch(0.35 0.18 300))", color: "white" }}>
+              🃏 Potenciadores
+            </Link>
+            <Link to="/campaign/notes" className="btn-fantasy text-center"
+              style={{ background: "linear-gradient(135deg, oklch(0.45 0.12 220), oklch(0.30 0.10 220))", color: "white" }}>
+              📝 Notas
+            </Link>
+          </div>
+
+          {/* Log */}
+          <h2 className="font-display text-xs uppercase tracking-widest text-center mb-2 text-[var(--gold)]">📜 Log de la partida</h2>
+          <LogList rows={logs} initial={20} maxH="max-h-[40vh]" empty="Sin actividad aún."
+            renderRow={(l: any) => (
+              <div key={l.id} className={`text-xs bg-secondary/40 rounded px-2 py-1.5 leading-relaxed ${l.undone ? "opacity-50 line-through" : ""}`}>
+                <LogSegments segments={l.segments as any}
+                  onItem={(id) => setOpenItem(id)}
+                  onChar={(id) => openCharFromLog(id, false)} />
+                <p className="text-[9px] text-muted-foreground mt-0.5">{new Date(l.created_at).toLocaleTimeString()}</p>
+              </div>
+            )} />
+        </>
+      )}
+
+      {activeTab === "escenario" && (
+        <>
+          {/* Mesa de jugadores */}
+          <div className="ornate-card p-3 mb-4">
+            <h2 className="font-display text-sm uppercase tracking-widest text-center mb-2 text-[var(--gold)]">✦ Mesa de jugadores ✦</h2>
+            <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase text-[var(--gain)]">
+              <span className="w-2 h-2 rounded-full bg-[var(--gain)] inline-block" /> En línea
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-3">
+              {online.map(p => <PlayerCard key={p.id} c={p} online onClick={() => openCharFromLog(p.id, true)} isSelf={p.id === character.id} />)}
+              {online.length === 0 && <p className="col-span-full text-[10px] text-muted-foreground text-center py-2">Nadie en línea</p>}
+            </div>
+            {offline.length > 0 && (
+              <>
+                <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase text-muted-foreground">
+                  <span className="w-2 h-2 rounded-full bg-muted-foreground/60 inline-block" /> Desconectados
+                </div>
+                {offline.length <= 3 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {offline.map(p => <OfflineRow key={p.id} c={p} onClick={() => openCharFromLog(p.id, true)} />)}
+                  </div>
+                ) : (
+                  <button onClick={() => setOpenOffline(true)}
+                    className="w-full ornate-card p-3 text-center hover:border-[var(--gold)]/60 transition opacity-80">
+                    <div className="flex items-center justify-center gap-2 text-xs">
+                      <span className="font-display text-[var(--gold)]">{offline.length}</span>
+                      <span className="text-muted-foreground">desconectados</span>
+                      <span className="text-[var(--gold)]">···</span>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground mt-1">Toca para ver todos</p>
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Log del escenario */}
+          <div className="ornate-card p-3">
+            <h2 className="font-display text-sm uppercase tracking-widest text-center mb-2 text-[var(--gold)]">📜 Log del escenario</h2>
+            <LogList rows={logs} initial={30} maxH="max-h-[50vh]" empty="Sin actividad aún."
+              renderRow={(l: any) => (
+                <div key={l.id} className={`text-xs bg-secondary/40 rounded px-2 py-1.5 leading-relaxed ${l.undone ? "opacity-50 line-through" : ""}`}>
+                  <LogSegments segments={l.segments as any}
+                    onItem={(id) => setOpenItem(id)}
+                    onChar={(id) => openCharFromLog(id, true)} />
+                  <p className="text-[9px] text-muted-foreground mt-0.5">{new Date(l.created_at).toLocaleTimeString()}</p>
+                </div>
+              )} />
+          </div>
+        </>
+      )}
 
       {imgModal && (
         <ImageEditor character={character} onClose={() => setImgModal(false)} />
       )}
       {openChar && (
-        <CharacterSheetModal characterId={openChar} campaignId={campaign.id} editor={null}
-          onClose={() => setOpenChar(null)}
+        <CharacterSheetModal characterId={openChar} campaignId={campaign.id}
+          editor={openCharReadOnly ? null : null}
+          onClose={() => { setOpenChar(null); setOpenCharReadOnly(false); }}
           onPickItem={(it) => setOpenItem(it.id)} />
       )}
       {openItem && (
         <ItemModal itemId={openItem} onClose={() => setOpenItem(null)} />
       )}
+      {openOffline && (
+        <OfflineListModal players={offline} onClose={() => setOpenOffline(false)}
+          onPick={(id) => { setOpenOffline(false); openCharFromLog(id, true); }} />
+      )}
     </PageFrame>
+  );
+}
+
+function PlayerCard({ c, online, onClick, isSelf }: { c: any; online: boolean; onClick: () => void; isSelf?: boolean }) {
+  const max = c.max_hp || 1;
+  const pct = Math.max(0, Math.min(100, (c.current_hp / max) * 100));
+  return (
+    <button onClick={onClick}
+      className={`ornate-card !p-2 text-center transition hover:border-[var(--gold)]/70 ${online ? "" : "opacity-50 grayscale"}`}>
+      <div className="relative mx-auto w-14 h-14 rounded-full overflow-hidden border-2"
+        style={{ borderColor: c.color || "var(--gold)" }}>
+        {c.image_url
+          ? <img src={c.image_url} alt={c.name} className="w-full h-full object-cover"
+              style={{ transform: `translate(${((c.image_offset_x ?? 50) - 50)}%, ${((c.image_offset_y ?? 50) - 50)}%) scale(${c.image_scale || 1})` }} />
+          : <div className="w-full h-full flex items-center justify-center text-xl bg-[var(--secondary)]">🧙</div>}
+        <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border border-background ${online ? "bg-[var(--gain)]" : "bg-muted-foreground/60"}`} />
+      </div>
+      <p className="font-display text-xs mt-1 truncate" style={{ color: c.color }}>{c.name}</p>
+      <p className="text-[9px] text-muted-foreground truncate">{c.race || "—"} / {c.class || "—"}</p>
+      <p className="text-[10px] mt-0.5">❤️ {c.current_hp}/{max}</p>
+      <div className="h-1 rounded-full bg-secondary overflow-hidden mt-0.5">
+        <div className="h-full" style={{ width: `${pct}%`, background: pct > 50 ? "var(--gain)" : pct > 25 ? "var(--gold)" : "var(--loss)" }} />
+      </div>
+      <p className={`text-[9px] mt-1 ${online ? "text-[var(--gain)]" : "text-muted-foreground"}`}>
+        {isSelf && online ? <span className="inline-flex items-center gap-0.5">Activo<span className="animate-pulse">···</span></span> : online ? "En línea" : "Offline"}
+      </p>
+    </button>
+  );
+}
+
+function OfflineRow({ c, onClick }: { c: any; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="ornate-card !p-2 flex items-center gap-2 opacity-60 hover:opacity-80 transition text-left">
+      <div className="w-8 h-8 rounded-full overflow-hidden border" style={{ borderColor: c.color || "var(--gold)" }}>
+        {c.image_url
+          ? <img src={c.image_url} alt={c.name} className="w-full h-full object-cover grayscale" />
+          : <div className="w-full h-full flex items-center justify-center text-xs bg-[var(--secondary)]">🧙</div>}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="font-display text-xs truncate" style={{ color: c.color }}>{c.name}</p>
+        <p className="text-[9px] text-muted-foreground truncate">{c.race || "—"} / {c.class || "—"}</p>
+        <div className="h-1 rounded-full bg-secondary overflow-hidden mt-0.5">
+          <div className="h-full bg-muted-foreground/60" style={{ width: `${Math.max(0, Math.min(100, (c.current_hp / (c.max_hp || 1)) * 100))}%` }} />
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function OfflineListModal({ players, onClose, onPick }: { players: any[]; onClose: () => void; onPick: (id: string) => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-3" onClick={onClose}>
+      <div className="ornate-card p-4 max-w-md w-full max-h-[85vh] overflow-y-auto space-y-2" onClick={e => e.stopPropagation()}>
+        <h3 className="font-display text-lg text-center text-[var(--gold)]">Desconectados</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {players.map(p => <OfflineRow key={p.id} c={p} onClick={() => onPick(p.id)} />)}
+        </div>
+        <button className="btn-fantasy w-full" onClick={onClose}>Cerrar</button>
+      </div>
+    </div>
   );
 }
 
