@@ -346,6 +346,7 @@ function ImageEditor({ character, onClose }: { character: any; onClose: () => vo
           <button className="btn-fantasy flex-1" onClick={onClose}>{t("common.cancel")}</button>
           <button className="btn-fantasy flex-1" style={{ background: "var(--gradient-gold)", color: "oklch(0.15 0.03 25)" }} onClick={save}>{t("common.save")}</button>
         </div>
+      </div>
     </div>
   );
 }
