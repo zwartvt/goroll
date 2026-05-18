@@ -84,22 +84,29 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   }, [load]);
 
   // Presence: track which characters are currently connected.
+  // Spectators (no characterId) still subscribe so they can SEE who is online,
+  // but use a unique non-character key and don't expose themselves in onlineIds.
   useEffect(() => {
-    const s = getSession(); if (!s || !s.characterId) return;
-    const presenceKey = s.characterId;
+    const s = getSession(); if (!s) return;
+    const isSpectator = !s.characterId;
+    const presenceKey = s.characterId || `spectator:${Math.random().toString(36).slice(2)}`;
     const ch = supabase.channel(`presence:campaign:${s.campaignId}`, {
       config: { presence: { key: presenceKey } },
     });
     const sync = () => {
       const state = ch.presenceState() as Record<string, any[]>;
-      setOnlineIds(new Set(Object.keys(state)));
+      // Only keys that correspond to actual character ids count as "online characters".
+      const ids = Object.keys(state).filter(k => !k.startsWith("spectator:"));
+      setOnlineIds(new Set(ids));
     };
     ch.on("presence", { event: "sync" }, sync)
       .on("presence", { event: "join" }, sync)
       .on("presence", { event: "leave" }, sync)
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await ch.track({ character_id: presenceKey, at: Date.now() });
+          await ch.track(isSpectator
+            ? { spectator: true, at: Date.now() }
+            : { character_id: presenceKey, at: Date.now() });
         }
       });
     return () => { supabase.removeChannel(ch); };
