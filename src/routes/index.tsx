@@ -397,7 +397,7 @@ function Home() {
             {/* PIN — 4 cuadros */}
             <div
               className="absolute flex justify-between items-center"
-              style={{ top: "55.5%", left: "16.5%", width: "67%", height: "13%" }}
+              style={{ top: "59%", left: "16.5%", width: "67%", height: "13%" }}
             >
               {[0, 1, 2, 3].map(i => (
                 <input
