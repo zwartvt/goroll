@@ -265,11 +265,12 @@ export function BoosterEditor({
   const [uses, setUses] = useState(booster?.uses ?? 1);
   const [maxUses, setMaxUses] = useState(booster?.max_uses ?? 1);
   const [transferTo, setTransferTo] = useState("");
+  const { t } = useT();
 
   const color = RARITY_COLOR[rarity];
 
   async function save() {
-    if (!name.trim()) return toast.error("Pon un nombre");
+    if (!name.trim()) return toast.error(t("boosters.putName"));
     const payload: any = {
       campaign_id: campaignId,
       name: name.trim(), rarity,
