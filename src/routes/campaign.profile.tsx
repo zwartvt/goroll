@@ -108,7 +108,10 @@ function Profile() {
           <h1 className="font-display text-xl rune-glow">{character.name}</h1>
           <p className="text-xs text-muted-foreground">{character.race || t("profile.defaultRace")} / {character.class || t("profile.defaultClass")}</p>
         </div>
-        <Link to="/campaign/settings" className="text-muted-foreground hover:text-foreground" aria-label={t("profile.statsAria")}><User size={20} /></Link>
+        <div className="flex items-center gap-1.5">
+          <MicToggle enabled={voice.enabled} onToggle={voice.toggle} />
+          <Link to="/campaign/settings" className="text-muted-foreground hover:text-foreground" aria-label={t("profile.statsAria")}><User size={20} /></Link>
+        </div>
       </header>
       <div className="gem-divider mb-4" />
 
