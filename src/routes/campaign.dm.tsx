@@ -121,6 +121,7 @@ function DM() {
             <div key={l.id} className={`text-sm bg-secondary/40 rounded px-3 py-2 leading-relaxed ${l.undone ? "opacity-50 line-through" : ""}`}>
               <LogSegments segments={l.segments as any}
                 onItem={openItemFromId}
+                onBooster={openBoosterFromId}
                 onChar={(id) => {
                   if (!characters.find(c => c.id === id)) toast.error(t("dm.playerNotFound"));
                   else setOpenChar(id);
