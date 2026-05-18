@@ -140,13 +140,14 @@ function DM() {
           <CreateItem campaignId={campaign.id} dm={dmCtx} players={players} />
           <DMConditionsCreator campaignId={campaign.id} players={players} />
           <div className="ornate-card p-4 space-y-2">
-            <h3 className="font-display text-sm uppercase tracking-widest text-[var(--rarity-purple)]">🃏 Crear potenciador</h3>
-            <p className="text-xs text-muted-foreground">Define nombre, rareza y usos. Se guarda en el Vault.</p>
+            <h3 className="font-display text-sm uppercase tracking-widest text-[var(--rarity-purple)]">{t("dm.createBoosterTitle")}</h3>
+            <p className="text-xs text-muted-foreground">{t("dm.createBoosterHint")}</p>
             <button className="btn-fantasy w-full"
               style={{ background: "linear-gradient(135deg, var(--rarity-purple), oklch(0.35 0.18 300))", color: "white" }}
               onClick={() => setCreatingBooster(true)}>
-              <Plus size={14} className="inline" /> Nuevo potenciador
+              <Plus size={14} className="inline" /> {t("dm.newBooster")}
             </button>
+
             <BulkBoosterImport campaignId={campaign.id} />
           </div>
         </div>
