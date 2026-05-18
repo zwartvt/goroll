@@ -104,6 +104,10 @@ function Spectator() {
       {openItemId && (
         <ItemModal itemId={openItemId} onClose={() => setOpenItemId(null)} />
       )}
+      {openBoosterId && (
+        <BoosterPeek boosterId={openBoosterId} character={null} campaignId={campaign.id}
+          onClose={() => setOpenBoosterId(null)} />
+      )}
     </PageFrame>
   );
 }
