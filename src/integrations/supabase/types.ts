@@ -194,6 +194,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          lock_character_names: boolean
           max_players: number
           name: string
           owner_user_id: string | null
@@ -202,6 +203,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          lock_character_names?: boolean
           max_players?: number
           name: string
           owner_user_id?: string | null
@@ -210,6 +212,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          lock_character_names?: boolean
           max_players?: number
           name?: string
           owner_user_id?: string | null
@@ -421,6 +424,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      deleted_campaigns: {
+        Row: {
+          deleted_at: string
+          deleted_by: string | null
+          id: string
+          name: string
+          original_id: string
+          owner_user_id: string | null
+          payload: Json
+        }
+        Insert: {
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          name: string
+          original_id: string
+          owner_user_id?: string | null
+          payload: Json
+        }
+        Update: {
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          name?: string
+          original_id?: string
+          owner_user_id?: string | null
+          payload?: Json
+        }
+        Relationships: []
       }
       dm_join_requests: {
         Row: {
