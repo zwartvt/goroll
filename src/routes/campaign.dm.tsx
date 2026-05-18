@@ -307,6 +307,7 @@ function DM() {
             onOpenChar={(id) => setOpenChar(id)}
             onOpenItem={openItemFromId}
             onOpenBooster={openBoosterFromId}
+            speakingIds={voice.speakingIds}
           />
         </>
       )}
