@@ -84,9 +84,8 @@ function Profile() {
     );
   };
 
-  const players = characters.filter(c => c.role !== "dm");
-  const online = players.filter(p => onlineIds.has(p.id) || p.id === character.id);
-  const offline = players.filter(p => !onlineIds.has(p.id) && p.id !== character.id);
+  // Players for Escenario view come from the shared component.
+
 
   return (
     <PageFrame>
