@@ -115,6 +115,7 @@ function FieldTile({ icon, label, value }: { icon: string; label: string; value?
 
 function RarityBonusChip({ rarity }: { rarity: Rarity }) {
   const c = RARITY_COLOR[rarity];
+  const { t } = useT();
   return (
     <span className="inline-flex flex-col items-center justify-center px-2.5 py-1.5 rounded-md font-display leading-tight whitespace-nowrap"
       style={{
@@ -124,7 +125,7 @@ function RarityBonusChip({ rarity }: { rarity: Rarity }) {
         minWidth: "3.25rem",
       }}>
       <span className="text-base font-bold">+{RARITY_DICE_BONUS[rarity]}</span>
-      <span className="text-[8px] uppercase tracking-wider opacity-90">por rareza</span>
+      <span className="text-[8px] uppercase tracking-wider opacity-90">{t("boosters.rarityBonusShort")}</span>
     </span>
   );
 }
