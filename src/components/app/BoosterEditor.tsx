@@ -310,9 +310,9 @@ export function BoosterEditor({
       const { pushLog } = await import("@/lib/log");
       await pushLog(campaignId, [
         { t: "char", v: dm.name, color: dm.color, id: dm.id },
-        { t: "text", v: goVault ? "guardó en el Vault" : "entregó" },
+        { t: "text", v: goVault ? t("boosters.savedToVault") : t("boosters.handed") },
         { t: "item", v: booster.name, rarity },
-        ...(target ? [{ t: "text", v: "a" } as const, { t: "char", v: target.name, color: target.color, id: target.id } as const] : []),
+        ...(target ? [{ t: "text", v: "→" } as const, { t: "char", v: target.name, color: target.color, id: target.id } as const] : []),
       ] as any);
     }
     toastSaved();
@@ -328,7 +328,7 @@ export function BoosterEditor({
       const { pushLog } = await import("@/lib/log");
       await pushLog(campaignId, [
         { t: "char", v: dm.name, color: dm.color, id: dm.id },
-        { t: "text", v: "retiró el potenciador" },
+        { t: "text", v: t("boosters.reclaimedLog") },
         { t: "item", v: booster.name, rarity },
       ]);
     }
