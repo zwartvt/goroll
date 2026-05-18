@@ -123,7 +123,7 @@ function Home() {
       const r = await (supabase as any).from("campaigns").select("*").ilike("name", code).maybeSingle();
       data = r.data;
     }
-    if (!data) return toast.error("Campaña no encontrada");
+    if (!data) return toast.error(t("home.errCampaignNotFound"));
     // For DM joins, gate via request flow (don't pre-create membership)
     if (role !== "dm") {
       await (supabase as any).from("campaign_members")
