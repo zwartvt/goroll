@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageFrame } from "@/components/app/Frame";
 import {
@@ -15,7 +15,6 @@ import { Settings as SettingsIcon } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import goRollLogo from "@/assets/go-roll-logo.png";
 import loginFrame from "@/assets/login-frame.png";
-import { useRef } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Vamos a Rolear · GoRoll" }] }),
