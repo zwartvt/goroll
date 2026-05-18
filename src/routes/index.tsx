@@ -36,7 +36,9 @@ function Home() {
   const [search, setSearch] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [singleDmOnly, setSingleDmOnly] = useState(false);
+  const [lockNames, setLockNames] = useState(false);
   const [waitingReqId, setWaitingReqId] = useState<string | null>(null);
+  const [actionCampaign, setActionCampaign] = useState<Campaign | null>(null);
 
   // character
   const [myChars, setMyChars] = useState<Character[]>([]);
