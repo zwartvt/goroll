@@ -136,6 +136,7 @@ export function useVoice(campaignId: string | undefined, characterId: string | u
       if (raf) cancelAnimationFrame(raf);
       stream?.getTracks().forEach(t => t.stop());
       ctx?.close().catch(() => {});
+      gainNodeRef.current = null;
       if (speakingRef.current) {
         channelRef.current?.send({
           type: "broadcast",
@@ -146,7 +147,8 @@ export function useVoice(campaignId: string | undefined, characterId: string | u
         speakingRef.current = false;
       }
     };
-  }, [enabled, characterId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, characterId, micSettings.noiseSuppression, micSettings.echoCancellation, micSettings.autoGainControl]);
 
   const setEnabled = useCallback((v: boolean) => setEnabledState(v), []);
   const toggle = useCallback(() => setEnabledState(v => !v), []);
