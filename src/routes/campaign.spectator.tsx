@@ -13,7 +13,7 @@ import { Escenario } from "@/components/app/Escenario";
 export const Route = createFileRoute("/campaign/spectator")({ component: Spectator });
 
 function Spectator() {
-  const { campaign, characters, items: _items, logs, achievements, onlineIds, loading } = useGameData();
+  const { campaign, characters, logs, achievements, onlineIds, loading } = useGameData();
   const nav = useNavigate();
   const [tab, setTab] = useState<"escenario" | "log" | "achievements">("escenario");
   const [openChar, setOpenChar] = useState<string | null>(null);
