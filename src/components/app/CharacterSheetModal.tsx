@@ -276,6 +276,23 @@ export function CharacterSheetModal({ characterId, campaignId, editor, onClose, 
             onClose={() => setShowNotes(false)}
           />
         )}
+        {vaultConfirm && (
+          <div className="fixed inset-0 bg-black/85 z-[70] flex items-center justify-center p-4"
+            onClick={(e) => { e.stopPropagation(); setVaultConfirm(null); }}>
+            <div className="ornate-card bg-card max-w-sm w-full p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+              <p className="text-sm">{t("sheet.toVaultConfirm", { name: vaultConfirm.name })}</p>
+              <div className="flex justify-end gap-2">
+                <button className="btn-fantasy" onClick={() => setVaultConfirm(null)}>{t("common.cancel")}</button>
+                <button className="btn-fantasy" onClick={async () => {
+                  const b = vaultConfirm;
+                  setVaultConfirm(null);
+                  await (supabase as any).from("boosters").update({ owner_character_id: null, in_dm_vault: true, uses: b.max_uses }).eq("id", b.id);
+                  reload();
+                }}>{t("common.confirm")}</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
