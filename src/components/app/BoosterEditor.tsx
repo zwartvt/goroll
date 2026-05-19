@@ -265,7 +265,7 @@ export function BoosterEditor({
   const [efecto, setEfecto] = useState(booster?.efecto || "");
   const [uses, setUses] = useState(booster?.uses ?? 1);
   const [maxUses, setMaxUses] = useState(booster?.max_uses ?? 1);
-  const [transferTo, setTransferTo] = useState("");
+  const [showTransferPick, setShowTransferPick] = useState(false);
   const { t } = useT();
 
   const color = RARITY_COLOR[rarity];
@@ -299,15 +299,15 @@ export function BoosterEditor({
     onClose();
   }
 
-  async function transferDM() {
-    if (!booster || !transferTo) return;
-    const goVault = transferTo === "__vault__";
+  async function transferDM(targetId: string) {
+    if (!booster || !targetId) return;
+    const goVault = targetId === "__vault__";
     await (supabase as any).from("boosters").update({
-      owner_character_id: goVault ? null : transferTo,
+      owner_character_id: goVault ? null : targetId,
       in_dm_vault: goVault,
     }).eq("id", booster.id);
     if (dm) {
-      const target = (players || []).find(p => p.id === transferTo);
+      const target = (players || []).find(p => p.id === targetId);
       const { pushLog } = await import("@/lib/log");
       await pushLog(campaignId, [
         { t: "char", v: dm.name, color: dm.color, id: dm.id },
@@ -408,17 +408,10 @@ export function BoosterEditor({
       {/* Gestión / Acciones */}
       <SectionFrame icon="📦" title={t("boosters.management")} color={color}>
         {booster && dm && (
-          <>
-            <select value={transferTo} onChange={e => setTransferTo(e.target.value)} className="dm-input w-full">
-              <option value="">{t("boosters.transferOption")}</option>
-              <option value="__vault__">{t("boosters.dmVault")}</option>
-              {(players || []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <div className="grid grid-cols-2 gap-2">
-              <button className="btn-fantasy" disabled={!transferTo} onClick={transferDM}>{t("boosters.transfer")}</button>
-              <button className="btn-fantasy" onClick={reclaim}>{t("boosters.reclaim")}</button>
-            </div>
-          </>
+          <div className="grid grid-cols-2 gap-2">
+            <button className="btn-fantasy" onClick={() => setShowTransferPick(true)}>{t("boosters.transfer")}</button>
+            <button className="btn-fantasy" onClick={reclaim}>{t("boosters.reclaim")}</button>
+          </div>
         )}
         <div className="grid grid-cols-2 gap-2">
           <button className="btn-fantasy" onClick={onClose}>{t("boosters.cancel")}</button>
@@ -429,6 +422,29 @@ export function BoosterEditor({
       </SectionFrame>
 
       <button className="text-sm text-muted-foreground underline w-full" onClick={onClose}>{t("boosters.close")}</button>
+
+      {showTransferPick && (
+        <div className="fixed inset-0 bg-black/85 z-[80] flex items-center justify-center p-4"
+          onClick={() => setShowTransferPick(false)}>
+          <div className="ornate-card bg-card max-w-sm w-full p-4 space-y-2" onClick={e => e.stopPropagation()}>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground text-center">{t("boosters.transferOption")}</p>
+            <button className="btn-fantasy w-full text-left"
+              onClick={() => { setShowTransferPick(false); transferDM("__vault__"); }}>
+              {t("boosters.dmVault")}
+            </button>
+            {(players || []).map(p => (
+              <button key={p.id} className="btn-fantasy w-full text-left"
+                style={{ color: p.color }}
+                onClick={() => { setShowTransferPick(false); transferDM(p.id); }}>
+                {p.name}
+              </button>
+            ))}
+            <button className="text-xs text-muted-foreground underline w-full pt-1"
+              onClick={() => setShowTransferPick(false)}>{t("boosters.cancel")}</button>
+          </div>
+        </div>
+      )}
+
 
       <style>{`.dm-input{width:100%;background:color-mix(in oklab,var(--input) 90%,black);border:1px solid color-mix(in oklab,var(--gold) 25%,transparent);border-radius:8px;padding:0.45rem 0.65rem;font-size:0.8rem;color:var(--foreground)}`}</style>
     </ModalShell>
