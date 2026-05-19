@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { LogList } from "@/components/app/LogList";
 import { LogSegments } from "@/components/app/LogSegments";
-import type { Character, LogRow } from "@/lib/game";
+import type { Character, Item, LogRow } from "@/lib/game";
+import { totals } from "@/lib/game";
 import { useT } from "@/lib/i18n";
 
 type Props = {
