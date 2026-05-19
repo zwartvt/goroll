@@ -108,8 +108,8 @@ export function Escenario({ characters, items, onlineIds, logs, selfId, onOpenCh
   );
 }
 
-function PlayerCard({ c, online, onClick, isSelf, t, speaking }: { c: any; online: boolean; onClick: () => void; isSelf?: boolean; t: (p: string) => string; speaking?: boolean }) {
-  const max = c.max_hp || c.base_hp || 1;
+function PlayerCard({ c, maxHp, online, onClick, isSelf, t, speaking }: { c: any; maxHp?: number; online: boolean; onClick: () => void; isSelf?: boolean; t: (p: string) => string; speaking?: boolean }) {
+  const max = maxHp ?? c.max_hp ?? c.base_hp ?? 1;
   const pct = Math.max(0, Math.min(100, (c.current_hp / max) * 100));
   return (
     <button onClick={onClick}
