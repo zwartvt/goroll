@@ -242,11 +242,7 @@ export function CharacterSheetModal({ characterId, campaignId, editor, onClose, 
                 </div>
                 {isEdit && (
                   <div className="flex gap-2">
-                    <button className="text-[10px] underline opacity-70" onClick={async () => {
-                      if (!confirm(t("sheet.toVaultConfirm", { name: b.name }))) return;
-                      await (supabase as any).from("boosters").update({ owner_character_id: null, in_dm_vault: true, uses: b.max_uses }).eq("id", b.id);
-                      reload();
-                    }}>{t("sheet.toVault")}</button>
+                    <button className="text-[10px] underline opacity-70" onClick={() => setVaultConfirm(b)}>{t("sheet.toVault")}</button>
                   </div>
                 )}
               </div>
