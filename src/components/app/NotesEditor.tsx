@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import DOMPurify from "isomorphic-dompurify";
 import { supabase } from "@/integrations/supabase/client";
+
 import { toast } from "sonner";
 import {
   Bold, Italic, Underline, Strikethrough,
