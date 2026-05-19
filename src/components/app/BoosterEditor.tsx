@@ -299,15 +299,15 @@ export function BoosterEditor({
     onClose();
   }
 
-  async function transferDM() {
-    if (!booster || !transferTo) return;
-    const goVault = transferTo === "__vault__";
+  async function transferDM(targetId: string) {
+    if (!booster || !targetId) return;
+    const goVault = targetId === "__vault__";
     await (supabase as any).from("boosters").update({
-      owner_character_id: goVault ? null : transferTo,
+      owner_character_id: goVault ? null : targetId,
       in_dm_vault: goVault,
     }).eq("id", booster.id);
     if (dm) {
-      const target = (players || []).find(p => p.id === transferTo);
+      const target = (players || []).find(p => p.id === targetId);
       const { pushLog } = await import("@/lib/log");
       await pushLog(campaignId, [
         { t: "char", v: dm.name, color: dm.color, id: dm.id },
