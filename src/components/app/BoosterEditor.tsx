@@ -265,7 +265,7 @@ export function BoosterEditor({
   const [efecto, setEfecto] = useState(booster?.efecto || "");
   const [uses, setUses] = useState(booster?.uses ?? 1);
   const [maxUses, setMaxUses] = useState(booster?.max_uses ?? 1);
-  const [transferTo, setTransferTo] = useState("");
+  const [showTransferPick, setShowTransferPick] = useState(false);
   const { t } = useT();
 
   const color = RARITY_COLOR[rarity];
