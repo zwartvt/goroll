@@ -36,6 +36,12 @@ function Master() {
       const { data } = await (supabase as any).from("app_settings").select("value").eq("key", "background_url").maybeSingle();
       setBgUrl(data?.value || "");
     })();
+    const ch = (supabase as any)
+      .channel("master:login_attempts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "login_attempts" }, () => reload())
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_users" }, () => reload())
+      .subscribe();
+    return () => { (supabase as any).removeChannel(ch); };
   }, []);
 
   async function reload() {
