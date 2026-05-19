@@ -66,7 +66,7 @@ export function Escenario({ characters, items, onlineIds, logs, selfId, onOpenCh
             </div>
             {offline.length <= 3 ? (
               <div className="grid grid-cols-2 gap-2">
-                {offline.map(p => <OfflineRow key={p.id} c={p} onClick={() => onOpenChar(p.id)} />)}
+                {offline.map(p => <OfflineRow key={p.id} c={p} maxHp={maxHpById[p.id]} onClick={() => onOpenChar(p.id)} />)}
               </div>
             ) : (
               <button onClick={() => setOpenOffline(true)}
