@@ -41,6 +41,8 @@ function DM() {
   const [creatingBooster, setCreatingBooster] = useState(false);
   const [boosterSel, setBoosterSel] = useState<Set<string>>(new Set());
   const [boosterSelectMode, setBoosterSelectMode] = useState(false);
+  const [vaultTopic, setVaultTopic] = useState<"all" | "equip" | "objects">("all");
+  const [vaultSub, setVaultSub] = useState<string>("all");
   const voice = useVoice(campaign?.id, character?.id);
   const [micSettingsOpen, setMicSettingsOpen] = useState(false);
 
