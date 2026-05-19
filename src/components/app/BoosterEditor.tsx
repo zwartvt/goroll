@@ -192,6 +192,46 @@ const ROW_ACCENTS = {
   uses:     "oklch(0.78 0.14 330)",  // pink
 } as const;
 
+function BoosterHolders({ templateId, campaignId, excludeId }: { templateId?: string | null; campaignId: string; excludeId?: string }) {
+  const { t } = useT();
+  const [owners, setOwners] = useState<{ id: string; name: string; color: string }[]>([]);
+  useEffect(() => {
+    if (!templateId) return;
+    let live = true;
+    async function load() {
+      const { data: copies } = await (supabase as any)
+        .from("boosters")
+        .select("owner_character_id")
+        .eq("campaign_id", campaignId)
+        .eq("template_id", templateId)
+        .not("owner_character_id", "is", null);
+      const ids = Array.from(new Set(((copies || []) as any[]).map(r => r.owner_character_id).filter(Boolean)));
+      if (ids.length === 0) { if (live) setOwners([]); return; }
+      const { data: chars } = await supabase.from("characters").select("id,name,color").in("id", ids);
+      if (!live) return;
+      setOwners(((chars || []) as any[]).filter(c => c.id !== excludeId));
+    }
+    load();
+    const ch = (supabase as any).channel(`bx:holders:${templateId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "boosters", filter: `campaign_id=eq.${campaignId}` }, load)
+      .subscribe();
+    return () => { live = false; (supabase as any).removeChannel(ch); };
+  }, [templateId, campaignId, excludeId]);
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] uppercase tracking-widest text-muted-foreground mr-1">{t("boosters.holders")}:</span>
+      {owners.length === 0 && <span className="text-[10px] italic text-muted-foreground">{t("boosters.noHolders")}</span>}
+      {owners.map(o => (
+        <span key={o.id} className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px]"
+          style={{ borderColor: o.color, color: o.color, background: `color-mix(in oklab, ${o.color} 12%, transparent)` }}>
+          <span className="w-2 h-2 rounded-full" style={{ background: o.color }} />
+          {o.name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function BoosterDetails({ b }: { b: Booster }) {
   const color = RARITY_COLOR[b.rarity as Rarity];
   const { t } = useT();
@@ -230,6 +270,12 @@ function BoosterDetails({ b }: { b: Booster }) {
           </StatRow>
         </div>
       </SectionFrame>
+
+      {b.template_id && (
+        <SectionFrame icon="👥" title={t("boosters.holders")} color={color}>
+          <BoosterHolders templateId={b.template_id} campaignId={b.campaign_id} excludeId={b.owner_character_id || undefined} />
+        </SectionFrame>
+      )}
 
       {b.efecto && (
         <SectionFrame icon="✒️" title={t("boosters.effect")} color={color}>
