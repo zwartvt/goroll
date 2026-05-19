@@ -569,11 +569,13 @@ export function BoosterActions({
                   <MessageSquare size={14} />
                   <span className="truncate">{t("boosters.showInChat")}</span>
                 </button>
-                <button className="btn-fantasy flex items-center justify-center"
-                  style={{ background: "color-mix(in oklab, var(--loss) 30%, transparent)", borderColor: "var(--loss)" }}
-                  onClick={discardToVault} title={t("boosters.discardTitle")} aria-label={t("boosters.discardTitle")}>
-                  <Trash2 size={16} />
-                </button>
+                {!hideDiscard && (
+                  <button className="btn-fantasy flex items-center justify-center"
+                    style={{ background: "color-mix(in oklab, var(--loss) 30%, transparent)", borderColor: "var(--loss)" }}
+                    onClick={discardToVault} title={t("boosters.discardTitle")} aria-label={t("boosters.discardTitle")}>
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             )}
             {showTransfer && (
