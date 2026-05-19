@@ -508,25 +508,12 @@ export function BoosterEditor({
       <button className="text-sm text-muted-foreground underline w-full" onClick={onClose}>{t("boosters.close")}</button>
 
       {showTransferPick && (
-        <div className="fixed inset-0 bg-black/85 z-[80] flex items-center justify-center p-4"
-          onClick={() => setShowTransferPick(false)}>
-          <div className="ornate-card bg-card max-w-sm w-full p-4 space-y-2" onClick={e => e.stopPropagation()}>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground text-center">{t("boosters.transferOption")}</p>
-            <button className="btn-fantasy w-full text-left"
-              onClick={() => { setShowTransferPick(false); transferDM("__vault__"); }}>
-              {t("boosters.dmVault")}
-            </button>
-            {(players || []).map(p => (
-              <button key={p.id} className="btn-fantasy w-full text-left"
-                style={{ color: p.color }}
-                onClick={() => { setShowTransferPick(false); transferDM(p.id); }}>
-                {p.name}
-              </button>
-            ))}
-            <button className="text-xs text-muted-foreground underline w-full pt-1"
-              onClick={() => setShowTransferPick(false)}>{t("boosters.cancel")}</button>
-          </div>
-        </div>
+        <TransferPickModal
+          players={players || []}
+          onClose={() => setShowTransferPick(false)}
+          onDistribute={(ids) => { setShowTransferPick(false); distributeCopies(ids); }}
+          onSendToVault={() => { setShowTransferPick(false); moveToVault(); }}
+        />
       )}
 
 
