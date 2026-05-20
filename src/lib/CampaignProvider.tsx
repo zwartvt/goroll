@@ -76,6 +76,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "logs", filter: `campaign_id=eq.${s.campaignId}` }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "achievements" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "boosters", filter: `campaign_id=eq.${s.campaignId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "booster_assignments", filter: `campaign_id=eq.${s.campaignId}` }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "character_conditions" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "campaign_members", filter: `campaign_id=eq.${s.campaignId}` }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "campaigns", filter: `id=eq.${s.campaignId}` }, () => load())
