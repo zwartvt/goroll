@@ -18,14 +18,27 @@ function Boosters() {
 
   async function reload() {
     if (!character) return;
-    const { data } = await (supabase as any).from("boosters")
-      .select("*").eq("owner_character_id", character.id).order("created_at");
-    setBoosters((data || []) as Booster[]);
+    const { data } = await (supabase as any).from("booster_assignments")
+      .select("id, uses, max_uses, booster:boosters(*)")
+      .eq("character_id", character.id)
+      .order("created_at");
+    const list: Booster[] = ((data || []) as any[])
+      .filter(a => a.booster)
+      .map(a => ({
+        ...(a.booster as any),
+        uses: a.uses,
+        max_uses: a.max_uses,
+        owner_character_id: character.id,
+        in_dm_vault: false,
+        _assignmentId: a.id,
+      }));
+    setBoosters(list);
   }
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [character?.id]);
   useEffect(() => {
     if (!campaign) return;
     const ch = (supabase as any).channel(`boosters:player:${character?.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "booster_assignments", filter: `campaign_id=eq.${campaign.id}` }, () => reload())
       .on("postgres_changes", { event: "*", schema: "public", table: "boosters", filter: `campaign_id=eq.${campaign.id}` }, () => reload())
       .subscribe();
     return () => { (supabase as any).removeChannel(ch); };

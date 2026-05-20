@@ -192,31 +192,29 @@ const ROW_ACCENTS = {
   uses:     "oklch(0.78 0.14 330)",  // pink
 } as const;
 
-function BoosterHolders({ templateId, campaignId, excludeId }: { templateId?: string | null; campaignId: string; excludeId?: string }) {
+function BoosterHolders({ boosterId, campaignId, excludeId }: { boosterId?: string | null; campaignId: string; excludeId?: string }) {
   const { t } = useT();
   const [owners, setOwners] = useState<{ id: string; name: string; color: string }[]>([]);
   useEffect(() => {
-    if (!templateId) return;
+    if (!boosterId) return;
     let live = true;
     async function load() {
-      const { data: copies } = await (supabase as any)
-        .from("boosters")
-        .select("owner_character_id")
-        .eq("campaign_id", campaignId)
-        .eq("template_id", templateId)
-        .not("owner_character_id", "is", null);
-      const ids = Array.from(new Set(((copies || []) as any[]).map(r => r.owner_character_id).filter(Boolean)));
+      const { data: assigns } = await (supabase as any)
+        .from("booster_assignments")
+        .select("character_id")
+        .eq("booster_id", boosterId);
+      const ids = Array.from(new Set(((assigns || []) as any[]).map(r => r.character_id).filter(Boolean)));
       if (ids.length === 0) { if (live) setOwners([]); return; }
       const { data: chars } = await supabase.from("characters").select("id,name,color").in("id", ids);
       if (!live) return;
       setOwners(((chars || []) as any[]).filter(c => c.id !== excludeId));
     }
     load();
-    const ch = (supabase as any).channel(`bx:holders:${templateId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "boosters", filter: `campaign_id=eq.${campaignId}` }, load)
+    const ch = (supabase as any).channel(`bx:holders:${boosterId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "booster_assignments", filter: `campaign_id=eq.${campaignId}` }, load)
       .subscribe();
     return () => { live = false; (supabase as any).removeChannel(ch); };
-  }, [templateId, campaignId, excludeId]);
+  }, [boosterId, campaignId, excludeId]);
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <span className="text-[10px] uppercase tracking-widest text-muted-foreground mr-1">{t("boosters.holders")}:</span>
@@ -271,9 +269,9 @@ function BoosterDetails({ b }: { b: Booster }) {
         </div>
       </SectionFrame>
 
-      {b.template_id && (
+      {b.id && (
         <SectionFrame icon="👥" title={t("boosters.holders")} color={color}>
-          <BoosterHolders templateId={b.template_id} campaignId={b.campaign_id} excludeId={b.owner_character_id || undefined} />
+          <BoosterHolders boosterId={b.id} campaignId={b.campaign_id} excludeId={b.owner_character_id || undefined} />
         </SectionFrame>
       )}
 
@@ -365,25 +363,16 @@ export function BoosterEditor({
 
   async function distributeCopies(targetIds: string[]) {
     if (!booster || targetIds.length === 0) return;
-    const templateId = (booster as any).template_id || booster.id;
-    const baseRow = {
+    const rows = targetIds.map(id => ({
       campaign_id: campaignId,
-      template_id: templateId,
-      name: booster.name,
-      rarity: booster.rarity,
+      booster_id: booster.id,
+      character_id: id,
       uses: booster.max_uses,
       max_uses: booster.max_uses,
-      in_dm_vault: false,
-      external_id: booster.external_id ?? null,
-      tipo: booster.tipo ?? null,
-      modo_lanzamiento: booster.modo_lanzamiento ?? null,
-      distancia: booster.distancia ?? null,
-      objetivos: booster.objetivos ?? null,
-      dados: booster.dados ?? null,
-      efecto: booster.efecto ?? null,
-    };
-    const rows = targetIds.map(id => ({ ...baseRow, owner_character_id: id }));
-    const { error } = await (supabase as any).from("boosters").insert(rows);
+    }));
+    const { error } = await (supabase as any)
+      .from("booster_assignments")
+      .upsert(rows, { onConflict: "booster_id,character_id", ignoreDuplicates: true });
     if (error) { toast.error(error.message); return; }
     if (dm) {
       const targets = (players || []).filter(p => targetIds.includes(p.id));
@@ -406,9 +395,8 @@ export function BoosterEditor({
 
   async function reclaim() {
     if (!booster) return;
-    await (supabase as any).from("boosters").update({
-      owner_character_id: null, in_dm_vault: true,
-    }).eq("id", booster.id);
+    // Remove every player's assignment for this booster — the catalog row stays.
+    await (supabase as any).from("booster_assignments").delete().eq("booster_id", booster.id);
     if (dm) {
       const { pushLog } = await import("@/lib/log");
       await pushLog(campaignId, [
@@ -640,13 +628,18 @@ export function BoosterActions({
 
   async function useBooster() {
     if (!character) return;
+    const assignmentId = (booster as any)._assignmentId as string | undefined;
     const remaining = booster.uses - 1;
+    if (!assignmentId) {
+      // Legacy/catalog booster with no assignment — nothing to consume.
+      onClose();
+      return;
+    }
     if (remaining <= 0) {
-      // Final use: remove this copy from the player's vault.
-      await (supabase as any).from("boosters").delete().eq("id", booster.id);
+      await (supabase as any).from("booster_assignments").delete().eq("id", assignmentId);
       await pushBoosterLog(character, t("boosters.usedBoosterLog"), t("boosters.lastSuffix"));
     } else {
-      await (supabase as any).from("boosters").update({ uses: remaining }).eq("id", booster.id);
+      await (supabase as any).from("booster_assignments").update({ uses: remaining }).eq("id", assignmentId);
       await pushBoosterLog(character, t("boosters.usedBoosterLog"), t("boosters.remainingSuffix", { n: remaining }));
     }
     onClose();
@@ -654,9 +647,16 @@ export function BoosterActions({
 
   async function transferTo(targetId: string) {
     if (!character) return;
-    await (supabase as any).from("boosters").update({
-      owner_character_id: targetId, in_dm_vault: false,
-    }).eq("id", booster.id);
+    const assignmentId = (booster as any)._assignmentId as string | undefined;
+    if (!assignmentId) return;
+    // Move my assignment to the target. If the target already has an assignment
+    // for this booster, the unique constraint fires — fall back to deleting
+    // mine (the target keeps the copy they already had).
+    const { error } = await (supabase as any).from("booster_assignments")
+      .update({ character_id: targetId }).eq("id", assignmentId);
+    if (error) {
+      await (supabase as any).from("booster_assignments").delete().eq("id", assignmentId);
+    }
     const target = members.find(p => p.id === targetId);
     await pushBoosterLog(character, t("boosters.yieldedLog", { name: target?.name ?? "?" }));
     toastSaved();
@@ -673,9 +673,10 @@ export function BoosterActions({
   async function discardToVault() {
     if (!character) return;
     if (!confirm(t("boosters.discardConfirm"))) return;
-    await (supabase as any).from("boosters").update({
-      owner_character_id: null, in_dm_vault: true,
-    }).eq("id", booster.id);
+    const assignmentId = (booster as any)._assignmentId as string | undefined;
+    if (assignmentId) {
+      await (supabase as any).from("booster_assignments").delete().eq("id", assignmentId);
+    }
     await pushBoosterLog(character, t("boosters.discardedLog"));
     toastSaved();
     onClose();

@@ -19,6 +19,11 @@ export type Booster = {
   dados?: string | null;
   efecto?: string | null;
   template_id?: string | null;
+  /** When present, this Booster instance represents a player's assignment
+   *  (booster_assignments row joined with the catalog booster). Used by
+   *  player flows (use / transfer / discard) to act on the assignment
+   *  rather than on the catalog row. */
+  _assignmentId?: string | null;
 };
 
 export function BoosterCard({ b, onClick }: { b: Booster; onClick?: () => void }) {
