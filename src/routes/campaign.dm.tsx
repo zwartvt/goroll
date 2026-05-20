@@ -258,7 +258,7 @@ function DM() {
           {boosters
             .filter(b => !boosterSearch || b.name.toLowerCase().includes(boosterSearch.toLowerCase()))
             .map(b => {
-              const owner = b.owner_character_id ? characters.find(c => c.id === b.owner_character_id) : null;
+              const holders = holderCounts.get(b.id) || 0;
               const checked = boosterSel.has(b.id);
               return (
                 <button key={b.id} onClick={() => {
@@ -276,7 +276,7 @@ function DM() {
                   <div className="flex-1">
                     <p className="font-display" style={{ color: RARITY_COLOR[b.rarity as Rarity] }}>🃏 {b.name}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {t("dm.usesOwner", { uses: b.uses, max: b.max_uses, owner: owner ? `📦 ${owner.name}` : "🏛️ Vault" })}
+                      {t("dm.usesOwner", { uses: b.max_uses, max: b.max_uses, owner: holders > 0 ? `👥 ${holders}` : "🏛️ Vault" })}
                     </p>
 
                   </div>
