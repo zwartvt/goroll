@@ -112,6 +112,51 @@ export type Database = {
         }
         Relationships: []
       }
+      booster_assignments: {
+        Row: {
+          booster_id: string
+          campaign_id: string
+          character_id: string
+          created_at: string
+          id: string
+          max_uses: number
+          uses: number
+        }
+        Insert: {
+          booster_id: string
+          campaign_id: string
+          character_id: string
+          created_at?: string
+          id?: string
+          max_uses?: number
+          uses?: number
+        }
+        Update: {
+          booster_id?: string
+          campaign_id?: string
+          character_id?: string
+          created_at?: string
+          id?: string
+          max_uses?: number
+          uses?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booster_assignments_booster_id_fkey"
+            columns: ["booster_id"]
+            isOneToOne: false
+            referencedRelation: "boosters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booster_assignments_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       boosters: {
         Row: {
           campaign_id: string
